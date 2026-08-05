@@ -74,21 +74,42 @@
       </div>
 
       <!-- 站点切换器：仅超级管理员可见 -->
-      <div v-if="store.isAdmin && store.stations.length" class="station-switcher">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-          <polyline points="9 22 9 12 15 12 15 22"/>
-        </svg>
-        <select
-          v-model="stationSel"
-          @change="onSwitchStation"
-          class="station-select"
-          title="切换当前供电所"
-        >
-          <option v-for="s in store.stations" :key="s.id" :value="s.id">
-            {{ s.name }}
-          </option>
-        </select>
+      <div v-if="store.isAdmin && store.stations.length" ref="stationSwitcher" class="station-switcher">
+        <button class="station-trigger" type="button" :class="{ open: stationOpen }" @click="toggleStationOpen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          <span class="station-trigger-name">{{ currentStationName }}</span>
+          <svg class="station-caret" :class="{ open: stationOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+
+        <teleport to="body">
+          <div
+            v-if="stationOpen"
+            class="station-dropdown"
+            :style="stationDropdownStyle"
+            @mousedown.prevent
+          >
+            <div class="station-dropdown-title">切换供电所</div>
+            <button
+              v-for="s in store.stations"
+              :key="s.id"
+              type="button"
+              class="station-option"
+              :class="{ active: s.id === store.currentStationId }"
+              @click="pickStation(s.id)"
+            >
+              <span class="station-option-dot" :class="{ active: s.id === store.currentStationId }"></span>
+              <span class="station-option-name">{{ s.name }}</span>
+              <svg v-if="s.id === store.currentStationId" class="station-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </button>
+          </div>
+        </teleport>
       </div>
       <div v-else-if="store.currentStationId" class="station-tag" title="当前供电所">
         {{ currentStationName }}
@@ -132,13 +153,34 @@ const currentStationName = computed(() => {
   return st ? st.name : (store.systemConfig.stationName || '')
 })
 
-// 站点切换器选中项：本地同步 store.currentStationId（v-model 与外部切换保持同步）
-const stationSel = ref(store.currentStationId)
-watch(() => store.currentStationId, (v) => { stationSel.value = v })
+// ===== 站点切换下拉（自定义面板，Teleport 到 body 避免裁剪） =====
+const stationOpen = ref(false)
+const stationSwitcher = ref(null)
+const stationDropdownStyle = ref({})
 
-// 切换站点：store 内会同步站点名并刷新各页数据
-const onSwitchStation = () => {
-  store.setCurrentStation(stationSel.value)
+const toggleStationOpen = () => {
+  if (stationOpen.value) { stationOpen.value = false; return }
+  const el = stationSwitcher.value
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  stationDropdownStyle.value = {
+    top: (r.bottom + 6) + 'px',
+    right: (window.innerWidth - r.right) + 'px',
+    minWidth: Math.max(r.width, 200) + 'px'
+  }
+  stationOpen.value = true
+}
+
+const pickStation = (id) => {
+  stationOpen.value = false
+  store.setCurrentStation(id)
+}
+
+const onStationDocClick = (e) => {
+  if (!stationOpen.value) return
+  const el = stationSwitcher.value
+  const inDropdown = e.target.closest('.station-dropdown')
+  if (el && !el.contains(e.target) && !inDropdown) stationOpen.value = false
 }
 
 // 搜索结果：异步调 store.globalSearch（已经接真接口）
@@ -221,6 +263,7 @@ onMounted(() => {
   timer = setInterval(updateClock, 1000)
   document.addEventListener('keydown', onKeydown)
   document.addEventListener('click', onDocClick)
+  document.addEventListener('click', onStationDocClick)
   // 站点切换器依赖站点列表：登录后未加载则拉取（默认只有进系统配置页才拉）
   if (!store.stations.length) store.fetchStations()
 })
@@ -228,6 +271,7 @@ onUnmounted(() => {
   if (timer) clearInterval(timer)
   document.removeEventListener('keydown', onKeydown)
   document.removeEventListener('click', onDocClick)
+  document.removeEventListener('click', onStationDocClick)
 })
 </script>
 
@@ -472,28 +516,130 @@ onUnmounted(() => {
   letter-spacing: $ls-wide;
 }
 
-// ===== 站点切换器 =====
+// ===== 站点切换器（自定义下拉） =====
 .station-switcher {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px 5px 10px;
-  background: $bg-page;
-  border: 1px solid $border-base;
-  border-radius: $radius-base;
-
-  svg { width: 14px; height: 14px; color: $accent; flex-shrink: 0; }
+  position: relative;
 }
 
-.station-select {
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: $fs-base;
+.station-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  background: $bg-page;
+  border: 1px solid $border-base;
+  border-radius: $radius-md;
   color: $text-primary;
   cursor: pointer;
   font-family: $font-body;
-  max-width: 160px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all $duration-fast $ease-out;
+
+  > svg:first-child {
+    width: 15px;
+    height: 15px;
+    color: $accent;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background: $bg-card;
+    border-color: $border-strong;
+  }
+
+  &.open {
+    border-color: $accent;
+    box-shadow: 0 0 0 3px $accent-soft;
+  }
+}
+
+.station-trigger-name {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.station-caret {
+  width: 13px;
+  height: 13px;
+  color: $text-muted;
+  flex-shrink: 0;
+  transition: transform $duration-fast $ease-out;
+
+  &.open { transform: rotate(180deg); }
+}
+
+.station-dropdown {
+  position: fixed;
+  z-index: 200;
+  background: $bg-card;
+  border: 1px solid $border-base;
+  border-radius: $radius-md;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(15, 23, 42, 0.08);
+  padding: 6px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.station-dropdown-title {
+  padding: 6px 10px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: $ls-wider;
+  text-transform: uppercase;
+  color: $text-muted;
+}
+
+.station-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: $radius-base;
+  font-family: $font-body;
+  font-size: 13px;
+  color: $text-primary;
+  cursor: pointer;
+  text-align: left;
+  transition: background $duration-fast $ease-out;
+
+  &:hover { background: $bg-hover; }
+
+  &.active {
+    background: $primary-soft;
+    color: $primary;
+    font-weight: 600;
+  }
+}
+
+.station-option-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: $border-strong;
+  flex-shrink: 0;
+
+  &.active { background: $primary; }
+}
+
+.station-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.station-option-check {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: $primary;
 }
 
 .station-tag {
