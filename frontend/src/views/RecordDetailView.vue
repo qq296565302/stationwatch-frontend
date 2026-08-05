@@ -505,7 +505,7 @@ const handleExport = async () => {
     const res = await store.createExport({
       year: Number(ym[0]),
       month: Number(ym[1]),
-      stationId: store.user.stationId,
+      stationId: store.currentStationId,
       includeTemplate: true,
       mergeSheets: false
     })

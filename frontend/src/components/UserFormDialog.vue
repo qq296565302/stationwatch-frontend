@@ -65,8 +65,12 @@
 
             <div class="field">
               <label class="field-label">所属站点</label>
-              <select v-model="form.stationId" class="field-input">
-                <option :value="null">未分配</option>
+              <select
+                v-model="form.stationId"
+                class="field-input"
+                :disabled="isStationLocked"
+              >
+                <option v-if="!isStationLocked" :value="null">未分配</option>
                 <option v-for="s in stations" :key="s.id" :value="s.id">{{ s.name }}</option>
               </select>
             </div>
@@ -90,8 +94,12 @@
 
             <div class="field">
               <label class="field-label">所属站点</label>
-              <select v-model="form.stationId" class="field-input">
-                <option :value="null">未分配</option>
+              <select
+                v-model="form.stationId"
+                class="field-input"
+                :disabled="isStationLocked"
+              >
+                <option v-if="!isStationLocked" :value="null">未分配</option>
                 <option v-for="s in stations" :key="s.id" :value="s.id">{{ s.name }}</option>
               </select>
             </div>
@@ -159,6 +167,9 @@ const roleOptions = [
   { value: 'supervisor',   label: '所长',   desc: '查看本所记录及管理' }
 ]
 
+// 所长仅能操作本所用户，站点下拉锁定
+const isStationLocked = computed(() => store.user.role !== 'admin')
+
 const form = reactive({
   username: '',
   password: '',
@@ -196,7 +207,7 @@ watch(() => props.visible, (v) => {
   form.password = ''
   form.realName = u.realName || ''
   form.role = u.role || 'duty_officer'
-  form.stationId = u.stationId ?? null
+  form.stationId = isStationLocked.value ? store.currentStationId : (u.stationId ?? null)
   form.isActive = u.isActive !== false
 })
 
@@ -210,14 +221,14 @@ const onSubmit = async () => {
         password: form.password,
         realName: form.realName.trim(),
         role: form.role,
-        stationId: form.stationId
+        stationId: isStationLocked.value ? store.currentStationId : form.stationId
       })
       toast.success('值班员已创建')
     } else if (props.mode === 'edit') {
       await store.updateUser(props.user.id, {
         realName: form.realName.trim(),
         role: form.role,
-        stationId: form.stationId,
+        stationId: isStationLocked.value ? store.currentStationId : form.stationId,
         isActive: form.isActive
       })
       toast.success('已保存修改')

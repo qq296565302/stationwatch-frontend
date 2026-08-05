@@ -37,7 +37,7 @@ const normalizeUser = (u) => {
     realName,
     role,
     roleName,
-    stationId: u.stationId ?? 1,
+    stationId: u.stationId ?? null,
     stationName: u.stationName || '',
     avatar: realName?.slice(-1) || u.username?.slice(-1) || '?'
   }
@@ -77,6 +77,9 @@ export const useAppStore = defineStore('app', {
       avatar: '?'
     },
     isLoggedIn: !!persisted?.user,
+
+    // 当前站点上下文：admin 可切换，supervisor/duty_officer 固定为本所
+    currentStationId: persisted?.user?.stationId ?? null,
 
     // 用户列表（系统配置-值班员管理）
     users: [],
@@ -280,6 +283,7 @@ export const useAppStore = defineStore('app', {
       const user = normalizeUser(data.user)
       this.user = user
       this.isLoggedIn = true
+      this.currentStationId = user.stationId
       this.systemConfig.stationName = user.stationName || this.systemConfig.stationName
       setAuth({
         user: data.user,
@@ -298,6 +302,7 @@ export const useAppStore = defineStore('app', {
       }
       this.records = []
       this.recordsLoaded = false
+      this.currentStationId = null
       clearAuth()
     },
 
@@ -308,6 +313,7 @@ export const useAppStore = defineStore('app', {
         const user = normalizeUser(data)
         this.user = user
         this.isLoggedIn = true
+        this.currentStationId = user.stationId
         this.systemConfig.stationName = user.stationName || this.systemConfig.stationName
       } catch (e) {
         this.isLoggedIn = false
@@ -319,10 +325,12 @@ export const useAppStore = defineStore('app', {
       await api.put('/auth/password', { oldPassword, newPassword })
     },
 
-    // 用户列表（仅管理员接口，非管理员 403 时静默置空）
+    // 用户列表（管理员/所长接口，按当前站点）
     async fetchUsers() {
       try {
-        const resp = await api.get('/users', { params: { page: 1, pageSize: 100 } })
+        const params = { page: 1, pageSize: 100 }
+        if (this.currentStationId) params.stationId = this.currentStationId
+        const resp = await api.get('/users', { params })
         const data = resp.data || resp
         this.users = data.list || []
       } catch (e) {
@@ -336,20 +344,53 @@ export const useAppStore = defineStore('app', {
         const resp = await api.get('/stations')
         const data = resp.data || resp
         this.stations = Array.isArray(data) ? data : (data.list || [])
+        // admin 未指定当前站点时兜底到第一个启用站点
+        if (!this.currentStationId && Array.isArray(this.stations) && this.stations.length) {
+          const active = this.stations.find(s => s.isActive) || this.stations[0]
+          this.currentStationId = active.id
+        }
       } catch (e) {
         this.stations = []
       }
     },
 
-    // 更新站点（仅管理员，系统配置-站点信息）
+    // 切换当前站点（admin）：同步站点名并刷新各页数据
+    async setCurrentStation(id) {
+      this.currentStationId = Number(id)
+      const st = this.stations.find(s => s.id === Number(id))
+      if (st) {
+        this.user.stationName = st.name
+        this.systemConfig.stationName = st.name
+      }
+      if (this.isLoggedIn) {
+        await Promise.allSettled([
+          this.fetchRecords(),
+          this.fetchScheduleConfig(),
+          this.fetchScheduleTable(),
+          this.fetchUsers(),
+          this.fetchDashboardActivities(),
+          this.fetchExportHistory(1, 20)
+        ])
+      }
+    },
+
+    // 新增站点（仅管理员）
+    async createStation(data) {
+      const resp = await api.post('/stations', data)
+      const s = resp.data || resp
+      this.stations.push(s)
+      return s
+    },
+
+    // 更新站点（管理员任意站点，所长仅本所，系统配置-站点信息）
     async updateStation(id, data) {
       const resp = await api.put(`/stations/${id}`, data)
       const s = resp.data || resp
       const idx = this.stations.findIndex(x => x.id === Number(id))
       if (idx >= 0) this.stations[idx] = s
       else this.stations.push(s)
-      // 站点名同步到登录用户展示
-      if (s.name && this.user.stationId === Number(id)) {
+      // 当前站点名同步到展示
+      if (s.name && this.currentStationId === Number(id)) {
         this.user.stationName = s.name
         this.systemConfig.stationName = s.name
       }
@@ -379,10 +420,11 @@ export const useAppStore = defineStore('app', {
       return resp.data || resp
     },
 
-    // ============ 值班排班 ============
+    // ============ 值班排班（按当前站点） ============
     async fetchScheduleConfig() {
       try {
-        const resp = await api.get('/schedule/config')
+        const params = this.currentStationId ? { stationId: this.currentStationId } : {}
+        const resp = await api.get('/schedule/config', { params })
         this.scheduleConfig = resp.data || resp || { configured: false, startDate: null, cycleDays: 5, groups: [] }
       } catch {
         this.scheduleConfig = { configured: false, startDate: null, cycleDays: 5, groups: [] }
@@ -391,7 +433,8 @@ export const useAppStore = defineStore('app', {
     },
 
     async updateScheduleConfig(payload) {
-      const resp = await api.put('/schedule/config', payload)
+      const body = { ...payload, stationId: payload.stationId ?? this.currentStationId }
+      const resp = await api.put('/schedule/config', body)
       this.scheduleConfig = resp.data || resp || this.scheduleConfig
       await this.fetchScheduleTable() // 保存后刷新表格
       return this.scheduleConfig
@@ -399,7 +442,9 @@ export const useAppStore = defineStore('app', {
 
     async fetchScheduleTable(params = {}) {
       try {
-        const resp = await api.get('/schedule/table', { params })
+        const st = params.stationId ?? this.currentStationId
+        const q = st ? { ...params, stationId: st } : params
+        const resp = await api.get('/schedule/table', { params: q })
         this.scheduleTable = resp.data || resp || []
       } catch {
         this.scheduleTable = []
@@ -414,7 +459,7 @@ export const useAppStore = defineStore('app', {
         api.get('/dictionaries/business-types'),
         api.get('/dictionaries/accept-contents'),
         api.get('/dictionaries/results'),
-        api.get(`/dictionaries/officers${this.user.stationId ? '?stationId=' + this.user.stationId : ''}`),
+        api.get(`/dictionaries/officers${this.currentStationId ? '?stationId=' + this.currentStationId : ''}`),
         api.get('/dictionaries/weather-options')
       ])
       this.dictionaries.businessTypes  = bt.data || bt || []
@@ -430,7 +475,9 @@ export const useAppStore = defineStore('app', {
     async fetchRecords(params = {}) {
       this.loadingRecords = true
       try {
-        const resp = await api.get('/records', { params })
+        const st = params.stationId ?? this.currentStationId
+        const q = st ? { ...params, stationId: st } : params
+        const resp = await api.get('/records', { params: q })
         const data = resp.data || resp
         this.records = (data.list || []).map(normalizeRecord)
         this.recordsLoaded = true
@@ -452,7 +499,9 @@ export const useAppStore = defineStore('app', {
 
     async fetchRecordByDate(date) {
       try {
-        const resp = await api.get('/records/find-by-date', { params: { date } })
+        const params = { date }
+        if (this.currentStationId) params.stationId = this.currentStationId
+        const resp = await api.get('/records/find-by-date', { params })
         const data = resp.data || resp
         if (!data) return null
         const record = normalizeRecord(data)
@@ -468,7 +517,8 @@ export const useAppStore = defineStore('app', {
 
     async fetchTodayRecord() {
       try {
-        const resp = await api.get('/records/today')
+        const params = this.currentStationId ? { stationId: this.currentStationId } : {}
+        const resp = await api.get('/records/today', { params })
         const data = resp.data || resp
         if (!data) return null
         const record = normalizeRecord(data)
@@ -575,38 +625,46 @@ export const useAppStore = defineStore('app', {
       }
     },
 
-    // ============ 仪表板 ============
+    // ============ 仪表板（按当前站点） ============
     async fetchDashboardStats(date) {
       try {
-        const resp = await api.get('/dashboard/stats', { params: date ? { date } : {} })
+        const params = date ? { date } : {}
+        if (this.currentStationId) params.stationId = this.currentStationId
+        const resp = await api.get('/dashboard/stats', { params })
         this.stats = resp.data || resp || {}
       } catch {}
     },
 
     async fetchDashboardActivities(limit = 20) {
       try {
-        const resp = await api.get('/dashboard/activities', { params: { limit } })
+        const params = { limit }
+        if (this.currentStationId) params.stationId = this.currentStationId
+        const resp = await api.get('/dashboard/activities', { params })
         this.activities = resp.data || resp || []
       } catch {}
     },
 
     async fetchDashboardAlerts() {
       try {
-        const resp = await api.get('/dashboard/alerts')
+        const params = this.currentStationId ? { stationId: this.currentStationId } : {}
+        const resp = await api.get('/dashboard/alerts', { params })
         this.alerts = resp.data || resp || []
       } catch {}
     },
 
     async fetchMonthlyStats(year, month) {
       try {
-        const resp = await api.get('/dashboard/monthly-stats', { params: { year, month } })
+        const params = { year, month }
+        if (this.currentStationId) params.stationId = this.currentStationId
+        const resp = await api.get('/dashboard/monthly-stats', { params })
         this.monthlyStats = resp.data || resp || []
       } catch {}
     },
 
     async fetchEquipmentStatus() {
       try {
-        const resp = await api.get('/dashboard/equipment-status')
+        const params = this.currentStationId ? { stationId: this.currentStationId } : {}
+        const resp = await api.get('/dashboard/equipment-status', { params })
         this.equipment = resp.data || resp || {}
       } catch {}
     },
@@ -628,7 +686,9 @@ export const useAppStore = defineStore('app', {
     },
 
     async fetchExportHistory(page = 1, pageSize = 20) {
-      const resp = await api.get('/exports', { params: { page, pageSize } })
+      const params = { page, pageSize }
+      if (this.currentStationId) params.stationId = this.currentStationId
+      const resp = await api.get('/exports', { params })
       const data = resp.data || resp
       // 后端字段（fileSize/createdAt/operatorName）→ 前端展示字段（size/date/operator）
       this.exports = (data.list || []).map(h => ({

@@ -372,7 +372,7 @@ const handleExport = async () => {
       res = await store.createExport({
         year: y,
         month: m,
-        stationId: store.user.stationId,
+        stationId: store.currentStationId,
         includeTemplate: config.includeTemplate,
         mergeSheets: config.mergeSheets
       })
@@ -381,7 +381,7 @@ const handleExport = async () => {
       res = await store.createRangeExport({
         dateFrom: config.dateFrom,
         dateTo: config.dateTo,
-        stationId: store.user.stationId,
+        stationId: store.currentStationId,
         includeTemplate: config.includeTemplate,
         mergeSheets: config.mergeSheets
       })

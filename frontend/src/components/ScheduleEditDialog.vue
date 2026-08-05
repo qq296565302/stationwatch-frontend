@@ -89,8 +89,10 @@ const toast = useToast()
 
 const form = reactive({ startDate: '', groups: [] })
 
-// 候选值班员（值班员 + 所长均可值班）
-const dutyOfficers = computed(() => store.users.filter(u => ['duty_officer', 'supervisor'].includes(u.role)))
+// 候选值班员（值班员 + 所长均可值班，仅限当前站点）
+const dutyOfficers = computed(() => store.users.filter(u =>
+  ['duty_officer', 'supervisor'].includes(u.role) && u.stationId === store.currentStationId
+))
 
 // 打开时按当前配置初始化
 watch(() => props.visible, (v) => {

@@ -63,6 +63,15 @@
           placeholder="搜索值班员、事项内容..."
         />
       </div>
+      <select
+        v-if="store.isAdmin"
+        :value="store.currentStationId"
+        @change="onStationChange"
+        class="filter-select"
+        title="切换站点"
+      >
+        <option v-for="s in store.stations" :key="s.id" :value="s.id">{{ s.name }}</option>
+      </select>
       <select v-model="filters.status" class="filter-select">
         <option value="">全部状态</option>
         <option value="active">进行中</option>
@@ -249,6 +258,11 @@ const filters = reactive({
   dateFrom: '',
   dateTo: ''
 })
+
+// 站点切换（admin）：与顶栏切换器一致，联动 store.currentStationId
+const onStationChange = (e) => {
+  store.setCurrentStation(e.target.value)
+}
 
 // 筛选日期上限：不允许选择今天以后的日期（本地日期）
 const todayISO = getCurrentDateISO()

@@ -73,6 +73,27 @@
         </transition>
       </div>
 
+      <!-- 站点切换器：仅超级管理员可见 -->
+      <div v-if="store.isAdmin && store.stations.length" class="station-switcher">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <select
+          v-model="stationSel"
+          @change="onSwitchStation"
+          class="station-select"
+          title="切换当前供电所"
+        >
+          <option v-for="s in store.stations" :key="s.id" :value="s.id">
+            {{ s.name }}
+          </option>
+        </select>
+      </div>
+      <div v-else-if="store.currentStationId" class="station-tag" title="当前供电所">
+        {{ currentStationName }}
+      </div>
+
       <div class="time-display font-mono">{{ currentTime }}</div>
     </div>
   </header>
@@ -104,6 +125,21 @@ const pageTitle = computed(() => {
   }
   return map[route.name] || route.meta.title || '主控台'
 })
+
+// 当前站点名（非管理员展示用）
+const currentStationName = computed(() => {
+  const st = store.stations.find(s => s.id === store.currentStationId)
+  return st ? st.name : (store.systemConfig.stationName || '')
+})
+
+// 站点切换器选中项：本地同步 store.currentStationId（v-model 与外部切换保持同步）
+const stationSel = ref(store.currentStationId)
+watch(() => store.currentStationId, (v) => { stationSel.value = v })
+
+// 切换站点：store 内会同步站点名并刷新各页数据
+const onSwitchStation = () => {
+  store.setCurrentStation(stationSel.value)
+}
 
 // 搜索结果：异步调 store.globalSearch（已经接真接口）
 const searchResults = ref([])
@@ -185,6 +221,8 @@ onMounted(() => {
   timer = setInterval(updateClock, 1000)
   document.addEventListener('keydown', onKeydown)
   document.addEventListener('click', onDocClick)
+  // 站点切换器依赖站点列表：登录后未加载则拉取（默认只有进系统配置页才拉）
+  if (!store.stations.length) store.fetchStations()
 })
 onUnmounted(() => {
   if (timer) clearInterval(timer)
@@ -432,5 +470,40 @@ onUnmounted(() => {
   border: 1px solid $border-base;
   border-radius: $radius-base;
   letter-spacing: $ls-wide;
+}
+
+// ===== 站点切换器 =====
+.station-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 10px;
+  background: $bg-page;
+  border: 1px solid $border-base;
+  border-radius: $radius-base;
+
+  svg { width: 14px; height: 14px; color: $accent; flex-shrink: 0; }
+}
+
+.station-select {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: $fs-base;
+  color: $text-primary;
+  cursor: pointer;
+  font-family: $font-body;
+  max-width: 160px;
+}
+
+.station-tag {
+  font-size: $fs-base;
+  font-weight: $fw-medium;
+  color: $text-secondary;
+  padding: 6px 12px;
+  background: $bg-page;
+  border: 1px solid $border-base;
+  border-radius: $radius-base;
+  white-space: nowrap;
 }
 </style>

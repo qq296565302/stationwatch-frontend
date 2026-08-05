@@ -533,7 +533,7 @@ const handleSubmit = async () => {
     recordDate: formData.recordDateISO,
     weather: formData.weather,
     weatherLabel: getWeatherLabel(formData.weather),
-    stationId: Number(store.user.stationId) || 1,
+    stationId: Number(store.currentStationId) || Number(store.user.stationId),
     dutyItems: validItems.map(i => ({
       id: Number(i.id) || 0,
       acceptTime: i.acceptTime || null,

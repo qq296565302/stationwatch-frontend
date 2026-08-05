@@ -53,7 +53,7 @@ const routes = [
     path: '/system',
     name: 'System',
     component: () => import('@/views/SystemView.vue'),
-    meta: { title: '系统配置', icon: 'settings', roles: ['admin'] }
+    meta: { title: '系统配置', icon: 'settings', roles: ['admin', 'supervisor'] }
   },
   {
     path: '/:pathMatch(.*)*',

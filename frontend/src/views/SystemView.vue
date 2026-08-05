@@ -18,9 +18,12 @@
           </div>
           <div>
             <h2 class="section-title">站点信息</h2>
-            <p class="section-desc">配置当前供电所的基本信息</p>
+            <p class="section-desc">{{ store.isAdmin ? '管理所有供电所基本信息' : '配置本供电所的基本信息' }}</p>
           </div>
           <div class="section-action">
+            <button v-if="store.isAdmin" class="btn btn-secondary btn-sm" :disabled="creatingStation" @click="toggleCreateStation">
+              {{ creatingStation ? '取消' : '新增站点' }}
+            </button>
             <button class="btn btn-primary btn-sm" :disabled="!stationForm.id || savingStation" @click="saveStation">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -32,14 +35,41 @@
           </div>
         </div>
         <div class="section-body">
+          <!-- 新增站点表单（仅管理员） -->
+          <div v-if="creatingStation" class="create-station-row">
+            <input v-model="newStationForm.name" class="field-input" placeholder="站点名称（必填）" />
+            <input v-model="newStationForm.code" class="field-input" placeholder="站点编码（必填，如 MAS）" style="max-width: 140px" />
+            <button class="btn btn-primary btn-sm" :disabled="!newStationForm.name.trim() || !newStationForm.code.trim()" @click="submitCreateStation">
+              创建
+            </button>
+          </div>
+
+          <!-- 站点切换（仅管理员，联动顶栏当前站点） -->
+          <div v-if="store.isAdmin && store.stations.length" class="station-manage-row">
+            <label class="field-label-inline">编辑站点</label>
+            <select :value="store.currentStationId" @change="selectStation" class="field-input" style="max-width: 260px">
+              <option v-for="s in store.stations" :key="s.id" :value="s.id">
+                {{ s.name }}{{ s.isActive ? '' : '（停用）' }}
+              </option>
+            </select>
+          </div>
+
           <div class="form-grid">
             <div class="field">
               <label class="field-label">站点名称</label>
               <input v-model="stationForm.name" type="text" class="field-input" />
             </div>
             <div class="field">
+              <label class="field-label">站点编码</label>
+              <input v-model="stationForm.code" type="text" class="field-input" />
+            </div>
+            <div class="field">
               <label class="field-label">所属区域</label>
               <input v-model="stationForm.region" type="text" class="field-input" />
+            </div>
+            <div class="field">
+              <label class="field-label">电压等级</label>
+              <input v-model="stationForm.voltage" type="text" class="field-input" />
             </div>
           </div>
         </div>
@@ -218,7 +248,7 @@
                 <span class="rule-unit">条</span>
               </div>
             </div>
-            <div class="rule-row">
+            <div v-if="store.isAdmin" class="rule-row">
               <div class="rule-info">
                 <div class="rule-label">历史记录修改限制</div>
                 <div class="rule-desc">是否允许修改历史日期的值班记录</div>
@@ -231,7 +261,7 @@
                 <span class="rule-value">{{ rulesForm.allowEditHistory ? '允许' : '禁止' }}</span>
               </div>
             </div>
-            <div class="rule-row">
+            <div v-if="store.isAdmin" class="rule-row">
               <div class="rule-info">
                 <div class="rule-label">自动记录开始时间</div>
                 <div class="rule-desc">输入内容时自动记录事项开始时间</div>
@@ -244,7 +274,7 @@
                 <span class="rule-value">{{ rulesForm.autoStartTime ? '已启用' : '已禁用' }}</span>
               </div>
             </div>
-            <div class="rule-row">
+            <div v-if="store.isAdmin" class="rule-row">
               <div class="rule-info">
                 <div class="rule-label">遗留问题提醒</div>
                 <div class="rule-desc">下个班次开始时自动提示遗留问题</div>
@@ -261,8 +291,8 @@
         </div>
       </div>
 
-      <!-- 系统信息 -->
-      <div class="config-section">
+      <!-- 系统信息（仅管理员） -->
+      <div v-if="store.isAdmin" class="config-section">
         <div class="section-header">
           <div class="section-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -327,7 +357,7 @@
 </template>
 
 <script setup>
-import { reactive, computed, ref, onMounted } from 'vue'
+import { reactive, computed, ref, onMounted, watch } from 'vue'
 import { useAppStore } from '@/store'
 import PageHeader from '@/components/PageHeader.vue'
 import UserFormDialog from '@/components/UserFormDialog.vue'
@@ -411,17 +441,21 @@ onMounted(async () => {
 const stationForm = reactive({
   id: null,
   name: '',
-  region: ''
+  code: '',
+  region: '',
+  voltage: ''
 })
 const savingStation = ref(false)
 
 const loadStationForm = () => {
-  const st = store.stations.find(s => s.id === store.user.stationId) || store.stations[0]
+  const st = store.stations.find(s => s.id === store.currentStationId)
   if (!st) return
   Object.assign(stationForm, {
     id: st.id,
     name: st.name,
-    region: st.region || ''
+    code: st.code || '',
+    region: st.region || '',
+    voltage: st.voltage || ''
   })
 }
 
@@ -434,7 +468,9 @@ const saveStation = async () => {
   try {
     await store.updateStation(stationForm.id, {
       name: stationForm.name,
-      region: stationForm.region
+      code: stationForm.code,
+      region: stationForm.region,
+      voltage: stationForm.voltage
     })
     toast.success('站点信息已保存')
   } catch (e) {
@@ -442,6 +478,36 @@ const saveStation = async () => {
   } finally {
     savingStation.value = false
   }
+}
+
+// 新增站点（仅管理员）
+const creatingStation = ref(false)
+const newStationForm = reactive({ name: '', code: '' })
+const toggleCreateStation = () => {
+  creatingStation.value = !creatingStation.value
+  if (!creatingStation.value) { newStationForm.name = ''; newStationForm.code = '' }
+}
+const submitCreateStation = async () => {
+  try {
+    const st = await store.createStation({
+      name: newStationForm.name.trim(),
+      code: newStationForm.code.trim().toUpperCase()
+    })
+    toast.success('站点已创建')
+    newStationForm.name = ''
+    newStationForm.code = ''
+    creatingStation.value = false
+    // 切到新站点
+    await store.setCurrentStation(st.id)
+    loadStationForm()
+  } catch (e) {
+    toast.error(e.message || '创建失败')
+  }
+}
+
+// 站点切换（admin，与顶栏切换器联动）
+const selectStation = (e) => {
+  store.setCurrentStation(e.target.value)
 }
 
 // ---- 值班规则 ----
@@ -455,7 +521,9 @@ const savingRules = ref(false)
 
 const loadRulesForm = () => {
   const map = store.systemConfigMap
-  rulesForm.maxItemsPerRecord = Number(map['duty.max_items_per_record'] ?? 11)
+  // 每班最大事项数优先取站点级配置（后端实际读取该值）
+  const st = store.stations.find(s => s.id === store.currentStationId)
+  rulesForm.maxItemsPerRecord = Number(st?.maxDutyItemsPerRecord ?? map['duty.max_items_per_record'] ?? 11)
   rulesForm.allowEditHistory = map['duty.allow_edit_history'] === true
   rulesForm.autoStartTime = map['duty.auto_start_time'] !== false
   rulesForm.pendingNotify = map['duty.pending_notify'] !== false
@@ -466,25 +534,31 @@ const saveRules = async () => {
   try {
     const max = Math.max(1, Math.min(20, Number(rulesForm.maxItemsPerRecord) || 11))
     rulesForm.maxItemsPerRecord = max
-    const jobs = [
-      store.updateSystemConfig({
+    if (!store.isAdmin) {
+      // 所长：仅保存本所每班最大事项数（站点级），全局开关不开放
+      if (!stationForm.id) throw new Error('未找到站点信息')
+      await store.updateStation(stationForm.id, { maxDutyItemsPerRecord: max })
+    } else {
+      const jobs = [
+        store.updateSystemConfig({
+          'duty.max_items_per_record': max,
+          'duty.allow_edit_history': !!rulesForm.allowEditHistory,
+          'duty.auto_start_time': !!rulesForm.autoStartTime,
+          'duty.pending_notify': !!rulesForm.pendingNotify
+        })
+      ]
+      // 同步站点字段（后端工单上限实际读取站点 maxDutyItemsPerRecord）
+      if (stationForm.id) {
+        jobs.push(store.updateStation(stationForm.id, { maxDutyItemsPerRecord: max }))
+      }
+      await Promise.all(jobs)
+      Object.assign(store.systemConfigMap, {
         'duty.max_items_per_record': max,
         'duty.allow_edit_history': !!rulesForm.allowEditHistory,
         'duty.auto_start_time': !!rulesForm.autoStartTime,
         'duty.pending_notify': !!rulesForm.pendingNotify
       })
-    ]
-    // 同步站点字段（后端工单上限实际读取站点 maxDutyItemsPerRecord）
-    if (stationForm.id) {
-      jobs.push(store.updateStation(stationForm.id, { maxDutyItemsPerRecord: max }))
     }
-    await Promise.all(jobs)
-    Object.assign(store.systemConfigMap, {
-      'duty.max_items_per_record': max,
-      'duty.allow_edit_history': !!rulesForm.allowEditHistory,
-      'duty.auto_start_time': !!rulesForm.autoStartTime,
-      'duty.pending_notify': !!rulesForm.pendingNotify
-    })
     toast.success('值班规则已保存')
   } catch (e) {
     toast.error(e.message || '保存失败')
@@ -492,6 +566,12 @@ const saveRules = async () => {
     savingRules.value = false
   }
 }
+
+// 当前站点切换后：重载站点信息表单与值班规则
+watch(() => store.currentStationId, () => {
+  loadStationForm()
+  loadRulesForm()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -556,6 +636,33 @@ const saveRules = async () => {
 }
 
 .section-body { padding: $space-5; }
+
+// ===== 站点管理 =====
+.station-manage-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.field-label-inline {
+  font-size: 12px;
+  font-weight: 500;
+  color: $text-secondary;
+  white-space: nowrap;
+}
+
+.create-station-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  background: $bg-page;
+  border: 1px dashed $border-base;
+  border-radius: $radius-base;
+  flex-wrap: wrap;
+}
 
 // ===== 字段 =====
 .form-grid {
