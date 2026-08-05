@@ -291,53 +291,6 @@
         </div>
       </div>
 
-      <!-- 系统信息（仅管理员） -->
-      <div v-if="store.isAdmin" class="config-section">
-        <div class="section-header">
-          <div class="section-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="16" x2="12" y2="12"/>
-              <line x1="12" y1="8" x2="12.01" y2="8"/>
-            </svg>
-          </div>
-          <div>
-            <h2 class="section-title">系统信息</h2>
-            <p class="section-desc">当前系统版本和服务状态</p>
-          </div>
-        </div>
-        <div class="section-body">
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">系统版本</span>
-              <span class="info-value font-mono">v1.0.0</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">前端版本</span>
-              <span class="info-value font-mono">vue-3.4.21</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">服务节点</span>
-              <span class="info-value">济南-主 · 青岛-备</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">运行状态</span>
-              <span class="info-value">
-                <i class="led led-ok"></i>
-                <span class="text-ok">正常运行</span>
-              </span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">数据库</span>
-              <span class="info-value">SQLite · duty_records.db</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">存储占用</span>
-              <span class="info-value font-mono">128 MB / 10 GB</span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- 值班员弹窗（新增 / 编辑 / 权限） -->
@@ -872,42 +825,6 @@ watch(() => store.currentStationId, () => {
   box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
 
   &::before { transform: translateX(18px); }
-}
-
-// ===== 系统信息 =====
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1px;
-  background: $border-subtle;
-  border: 1px solid $border-subtle;
-  border-radius: $radius-sm;
-  overflow: hidden;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: $space-3 $space-4;
-  background: $bg-elevated;
-}
-
-.info-label {
-  font-family: $font-mono;
-  font-size: 10px;
-  letter-spacing: $ls-widest;
-  text-transform: uppercase;
-  color: $text-muted;
-}
-
-.info-value {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: $fs-sm;
-  color: $text-primary;
-  font-weight: $fw-medium;
 }
 
 // ===== 值班排班 =====
