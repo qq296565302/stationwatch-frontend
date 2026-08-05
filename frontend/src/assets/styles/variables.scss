@@ -1,0 +1,164 @@
+// ========================================
+// 设计令牌 · Design Tokens
+// 主题: 浅色极简 (Linear / Notion 风格)
+// ========================================
+
+// ---- 颜色系统 (Colors) ----
+// 背景层
+$bg-page:        #fafafa;    // 页面底色
+$bg-card:        #ffffff;    // 卡片/面板
+$bg-elevated:    #ffffff;    // 悬浮层
+$bg-subtle:      #f5f5f5;    // 次级背景
+$bg-hover:       #f3f4f6;    // 悬停态
+$bg-active:      #e5e7eb;    // 激活态
+
+// 边框
+$border-subtle:  #f1f5f9;
+$border-base:    #e5e7eb;
+$border-strong:  #d1d5db;
+$border-emphasis:#0f172a;
+$border-accent:  #bfdbfe;
+
+// 文字层级
+$text-primary:   #0f172a;    // 主文字
+$text-secondary: #475569;    // 次文字
+$text-muted:     #94a3b8;    // 弱化文字
+$text-faint:     #cbd5e1;    // 极弱文字
+$text-inverse:   #ffffff;
+$text-link:      #2563eb;    // 链接
+
+// 主色 - Linear 风格的近黑色
+$primary:        #0f172a;
+$primary-hover:  #1e293b;
+$primary-soft:   #f1f5f9;
+
+// 强调色（点缀使用）
+$accent:         #2563eb;    // 蓝色（高亮/链接）
+$accent-soft:    #eff6ff;
+$accent-border:  #bfdbfe;
+
+$ok:             #10b981;    // 成功
+$ok-soft:        #ecfdf5;
+$ok-border:      #a7f3d0;
+
+$warn:           #f59e0b;    // 警告
+$warn-soft:      #fffbeb;
+$warn-border:    #fde68a;
+
+$crit:           #ef4444;    // 危险
+$crit-soft:      #fef2f2;
+$crit-border:    #fecaca;
+
+$info:           #3b82f6;
+$info-soft:      #eff6ff;
+
+// ---- 字体 (Typography) ----
+$font-display:   'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+$font-body:      'Noto Sans SC', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+$font-mono:      'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+$fs-xs:   11px;
+$fs-sm:   12px;
+$fs-base: 13px;
+$fs-md:   14px;
+$fs-lg:   16px;
+$fs-xl:   18px;
+$fs-2xl:  22px;
+$fs-3xl:  28px;
+$fs-4xl:  36px;
+$fs-5xl:  48px;
+
+$fw-regular:  400;
+$fw-medium:   500;
+$fw-semibold: 600;
+$fw-bold:     700;
+
+$lh-tight:    1.25;
+$lh-snug:     1.4;
+$lh-base:     1.55;
+$lh-loose:    1.7;
+
+$ls-tight:    -0.02em;
+$ls-normal:   0;
+$ls-wide:     0.01em;
+$ls-wider:    0.04em;
+$ls-widest:   0.08em;
+
+// ---- 间距 (Spacing) ----
+$space-0:   0;
+$space-1:   4px;
+$space-2:   6px;
+$space-3:   8px;
+$space-4:   12px;
+$space-5:   16px;
+$space-6:   20px;
+$space-7:   24px;
+$space-8:   32px;
+$space-9:   40px;
+$space-10:  48px;
+$space-12:  64px;
+$space-16:  80px;
+$space-20:  96px;
+
+// ---- 圆角 (Radius) ----
+$radius-none: 0;
+$radius-sm:   4px;
+$radius-base: 6px;
+$radius-md:   8px;
+$radius-lg:   10px;
+$radius-xl:   12px;
+$radius-2xl:  16px;
+$radius-full: 9999px;
+
+// ---- 阴影 (Shadows) ----
+$shadow-xs:  0 1px 2px rgba(15, 23, 42, 0.04);
+$shadow-sm:  0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.05);
+$shadow-md:  0 2px 4px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
+$shadow-lg:  0 4px 8px rgba(15, 23, 42, 0.05), 0 12px 24px rgba(15, 23, 42, 0.08);
+$shadow-xl:  0 8px 16px rgba(15, 23, 42, 0.06), 0 24px 48px rgba(15, 23, 42, 0.10);
+
+// ---- 过渡 (Transitions) ----
+$ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+$ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+$ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+$duration-fast:   120ms;
+$duration-base:   180ms;
+$duration-slow:   280ms;
+$duration-slower: 400ms;
+
+// ---- 布局 (Layout) ----
+$sidebar-width:       232px;
+$sidebar-width-mini:  60px;
+$header-height:       56px;
+$content-max-width:   1280px;
+
+// ---- Z-Index ----
+$z-base:     0;
+$z-elevated: 10;
+$z-sticky:   100;
+$z-overlay:  1000;
+$z-modal:    2000;
+$z-toast:    3000;
+
+// ---- 兼容别名（旧页面引用，避免破坏） ----
+$bg-base:           $bg-card;
+$bg-deep:           $bg-card;
+$bg-void:           $bg-page;
+$bg-elevated:       $bg-card;
+$primary-bright:    $primary;
+$primary-dim:       $primary;
+$primary-glow:      rgba(15, 23, 42, 0.06);
+$accent-violet:     $primary;
+$accent-amber:      $warn;
+$accent-amber-soft: $warn-soft;
+$accent-green:      $ok;
+$accent-green-soft: $ok-soft;
+$accent-magenta:    $crit;
+$accent-magenta-soft: $crit-soft;
+$status-crit:       $crit;
+$status-warn:       $warn;
+$status-ok:         $ok;
+$shadow-md:         0 2px 4px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
+$shadow-lg:         0 4px 8px rgba(15, 23, 42, 0.05), 0 12px 24px rgba(15, 23, 42, 0.08);
+$shadow-xl:         0 8px 16px rgba(15, 23, 42, 0.06), 0 24px 48px rgba(15, 23, 42, 0.10);

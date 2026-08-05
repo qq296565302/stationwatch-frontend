@@ -1,0 +1,423 @@
+// ========================================
+// 全局样式 · Global Styles
+// 浅色极简风 (Linear / Notion)
+// ========================================
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: $font-body;
+  font-size: $fs-base;
+  line-height: $lh-base;
+  color: $text-primary;
+  background: $bg-page;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv11", "ss01";
+}
+
+// ---- 滚动条 ----
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $border-strong;
+  border-radius: $radius-full;
+  border: 2px solid $bg-page;
+
+  &:hover {
+    background: $text-muted;
+  }
+}
+
+// ---- 文字选择 ----
+::selection {
+  background: $accent-soft;
+  color: $accent;
+}
+
+// ---- 通用文字工具类 ----
+.font-mono    { font-family: $font-mono; }
+.font-display { font-family: $font-display; }
+
+.text-primary   { color: $text-primary; }
+.text-secondary { color: $text-secondary; }
+.text-muted     { color: $text-muted; }
+.text-faint     { color: $text-faint; }
+.text-link      { color: $text-link; }
+.text-ok        { color: $ok; }
+.text-warn      { color: $warn; }
+.text-crit      { color: $crit; }
+
+// ---- 按钮系统 ----
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+  padding: 7px 12px;
+  font-family: $font-body;
+  font-size: $fs-base;
+  font-weight: $fw-medium;
+  line-height: 1;
+  border: 1px solid transparent;
+  border-radius: $radius-base;
+  background: transparent;
+  color: $text-primary;
+  cursor: pointer;
+  transition: all $duration-fast $ease-out;
+  user-select: none;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  &-primary {
+    background: $primary;
+    color: $text-inverse;
+    border-color: $primary;
+    box-shadow: $shadow-xs;
+
+    &:hover:not(:disabled) {
+      background: $primary-hover;
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+  }
+
+  &-secondary {
+    background: $bg-card;
+    color: $text-primary;
+    border-color: $border-base;
+
+    &:hover:not(:disabled) {
+      background: $bg-hover;
+      border-color: $border-strong;
+    }
+  }
+
+  &-ghost {
+    background: transparent;
+    color: $text-secondary;
+
+    &:hover:not(:disabled) {
+      background: $bg-hover;
+      color: $text-primary;
+    }
+  }
+
+  &-danger {
+    background: transparent;
+    color: $crit;
+    border-color: $crit-border;
+
+    &:hover:not(:disabled) {
+      background: $crit-soft;
+    }
+  }
+
+  &-link {
+    padding: 0;
+    background: transparent;
+    color: $text-link;
+    border: none;
+
+    &:hover:not(:disabled) {
+      text-decoration: underline;
+    }
+  }
+
+  &-sm { padding: 5px 10px; font-size: $fs-sm; border-radius: $radius-sm; }
+  &-lg { padding: 10px 16px; font-size: $fs-md; }
+  &-icon {
+    padding: 7px;
+    width: 32px;
+    height: 32px;
+    color: $text-muted;
+
+    &:hover:not(:disabled) {
+      color: $text-primary;
+      background: $bg-hover;
+    }
+
+    &-success {
+      color: $ok;
+
+      &:hover:not(:disabled) {
+        color: $ok;
+        background: $ok-soft;
+      }
+    }
+  }
+  &-mini {
+    padding: 3px 8px;
+    font-size: $fs-sm;
+    border-radius: $radius-sm;
+    border: 1px solid transparent;
+    background: transparent;
+    color: $text-secondary;
+
+    &:hover:not(:disabled) {
+      background: $bg-hover;
+    }
+
+    &-success {
+      color: $ok;
+      border-color: $ok-border;
+      background: $ok-soft;
+
+      &:hover:not(:disabled) {
+        background: $ok;
+        color: $text-inverse;
+        border-color: $ok;
+      }
+    }
+  }
+}
+
+// ---- 输入框系统 ----
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &-label {
+    display: block;
+    font-size: $fs-base;
+    font-weight: $fw-medium;
+    color: $text-primary;
+
+    &-required::after {
+      content: '*';
+      color: $crit;
+      margin-left: 2px;
+    }
+  }
+
+  &-hint {
+    font-size: $fs-sm;
+    color: $text-muted;
+  }
+
+  &-input,
+  &-select,
+  &-textarea {
+    width: 100%;
+    padding: 8px 12px;
+    font-family: $font-body;
+    font-size: $fs-base;
+    color: $text-primary;
+    background: $bg-card;
+    border: 1px solid $border-base;
+    border-radius: $radius-base;
+    outline: none;
+    transition: border-color $duration-fast $ease-out, box-shadow $duration-fast $ease-out;
+
+    &::placeholder {
+      color: $text-muted;
+    }
+
+    &:hover:not(:disabled) {
+      border-color: $border-strong;
+    }
+
+    &:focus {
+      border-color: $accent;
+      box-shadow: 0 0 0 3px $accent-soft;
+    }
+  }
+
+  &-textarea {
+    min-height: 80px;
+    resize: vertical;
+    line-height: $lh-base;
+    font-family: $font-body;
+  }
+
+  &-select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%2394a3b8' stroke-width='1.5' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 32px;
+    appearance: none;
+  }
+}
+
+// ---- 卡片系统 ----
+.card {
+  background: $bg-card;
+  border: 1px solid $border-base;
+  border-radius: $radius-lg;
+  overflow: hidden;
+
+  &-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid $border-subtle;
+  }
+
+  &-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: $fs-md;
+    font-weight: $fw-semibold;
+    color: $text-primary;
+  }
+
+  &-body {
+    padding: 20px;
+  }
+}
+
+// ---- 标签 ----
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  font-size: $fs-sm;
+  font-weight: $fw-medium;
+  border-radius: $radius-sm;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  line-height: 1.5;
+
+  &-ok    { background: $ok-soft;    color: #047857;    border-color: $ok-border; }
+  &-warn  { background: $warn-soft;  color: #b45309;    border-color: $warn-border; }
+  &-crit  { background: $crit-soft;  color: #b91c1c;    border-color: $crit-border; }
+  &-info  { background: $info-soft;  color: $accent;    border-color: $accent-border; }
+  &-muted { background: $bg-subtle;  color: $text-secondary; border-color: $border-base; }
+}
+
+// ---- 状态点 ----
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: $text-muted;
+  flex-shrink: 0;
+
+  &-ok   { background: $ok; }
+  &-warn { background: $warn; }
+  &-crit { background: $crit; }
+  &-info { background: $accent; }
+}
+
+// ---- 渐入动画 ----
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in     { animation: fade-in $duration-slow $ease-out both; }
+.fade-in-up  { animation: fade-in-up $duration-slow $ease-out both; }
+
+// ---- 表格系统 ----
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $fs-base;
+
+  thead th {
+    padding: 10px 16px;
+    font-size: $fs-sm;
+    font-weight: $fw-medium;
+    text-align: left;
+    color: $text-muted;
+    text-transform: uppercase;
+    letter-spacing: $ls-wider;
+    background: $bg-page;
+    border-bottom: 1px solid $border-base;
+  }
+
+  tbody tr {
+    transition: background $duration-fast $ease-out;
+    border-bottom: 1px solid $border-subtle;
+
+    &:last-child { border-bottom: none; }
+
+    &:hover {
+      background: $bg-page;
+    }
+
+    td {
+      padding: 14px 16px;
+      color: $text-primary;
+      vertical-align: middle;
+    }
+  }
+}
+
+// ---- 工具类 ----
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 6px; }
+.gap-3 { gap: 8px; }
+.gap-4 { gap: 12px; }
+.gap-5 { gap: 16px; }
+.flex-1 { flex: 1; }
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+
+// ---- 链接 ----
+a {
+  color: $text-link;
+  text-decoration: none;
+  transition: opacity $duration-fast $ease-out;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+// ---- 表单元素重置 ----
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  outline: none;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 3px $accent-soft;
+  }
+}
