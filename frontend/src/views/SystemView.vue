@@ -18,10 +18,10 @@
           </div>
           <div>
             <h2 class="section-title">站点信息</h2>
-            <p class="section-desc">{{ store.isAdmin ? '管理所有供电所基本信息' : '配置本供电所的基本信息' }}</p>
+            <p class="section-desc">{{ store.canManageStation ? '管理供电所基本信息（区县管理员仅本区县）' : '配置本供电所的基本信息' }}</p>
           </div>
           <div class="section-action">
-            <button v-if="store.isAdmin" class="btn btn-secondary btn-sm" :disabled="creatingStation" @click="toggleCreateStation">
+            <button v-if="store.canManageStation" class="btn btn-secondary btn-sm" :disabled="creatingStation" @click="toggleCreateStation">
               {{ creatingStation ? '取消' : '新增站点' }}
             </button>
             <button class="btn btn-primary btn-sm" :disabled="!stationForm.id || savingStation" @click="saveStation">
@@ -35,20 +35,23 @@
           </div>
         </div>
         <div class="section-body">
-          <!-- 新增站点表单（仅管理员） -->
+          <!-- 新增站点表单（市级超管/区县管理员） -->
           <div v-if="creatingStation" class="create-station-row">
             <input v-model="newStationForm.name" class="field-input" placeholder="站点名称（必填）" />
-            <input v-model="newStationForm.code" class="field-input" placeholder="站点编码（必填，如 MAS）" style="max-width: 140px" />
-            <button class="btn btn-primary btn-sm" :disabled="!newStationForm.name.trim() || !newStationForm.code.trim()" @click="submitCreateStation">
+            <select v-if="store.isAdmin" v-model="newStationForm.districtId" class="field-input" style="max-width: 160px">
+              <option :value="null">选择区县</option>
+              <option v-for="d in store.districts" :key="d.id" :value="d.id">{{ d.name }}</option>
+            </select>
+            <button class="btn btn-primary btn-sm" :disabled="!newStationForm.name.trim() || (store.isAdmin && !newStationForm.districtId)" @click="submitCreateStation">
               创建
             </button>
           </div>
 
-          <!-- 站点切换（仅管理员，联动顶栏当前站点） -->
-          <div v-if="store.isAdmin && store.stations.length" class="station-manage-row">
+          <!-- 站点切换（市级超管/区县管理员，联动顶栏当前站点） -->
+          <div v-if="store.canSwitchStation && store.visibleStations.length" class="station-manage-row">
             <label class="field-label-inline">编辑站点</label>
             <select :value="store.currentStationId" @change="selectStation" class="field-input" style="max-width: 260px">
-              <option v-for="s in store.stations" :key="s.id" :value="s.id">
+              <option v-for="s in store.visibleStations" :key="s.id" :value="s.id">
                 {{ s.name }}{{ s.isActive ? '' : '（停用）' }}
               </option>
             </select>
@@ -60,16 +63,10 @@
               <input v-model="stationForm.name" type="text" class="field-input" />
             </div>
             <div class="field">
-              <label class="field-label">站点编码</label>
-              <input v-model="stationForm.code" type="text" class="field-input" />
-            </div>
-            <div class="field">
-              <label class="field-label">所属区域</label>
-              <input v-model="stationForm.region" type="text" class="field-input" />
-            </div>
-            <div class="field">
-              <label class="field-label">电压等级</label>
-              <input v-model="stationForm.voltage" type="text" class="field-input" />
+              <label class="field-label">所属区县</label>
+              <select v-model="stationForm.districtId" class="field-input" :disabled="!store.isAdmin">
+                <option v-for="d in store.districts" :key="d.id" :value="d.id">{{ d.name }}</option>
+              </select>
             </div>
           </div>
         </div>
@@ -171,7 +168,7 @@
             <p class="section-desc">固定轮值 · 每组一天 · 周期循环</p>
           </div>
           <div class="section-action">
-            <button class="btn btn-secondary btn-sm" @click="showScheduleEdit = true">
+            <button v-if="store.user.role !== 'district_admin'" class="btn btn-secondary btn-sm" @click="showScheduleEdit = true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -226,7 +223,7 @@
             <p class="section-desc">配置值班记录的相关业务规则</p>
           </div>
           <div class="section-action">
-            <button class="btn btn-primary btn-sm" :disabled="savingRules" @click="saveRules">
+            <button v-if="store.user.role !== 'district_admin'" class="btn btn-primary btn-sm" :disabled="savingRules" @click="saveRules">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                 <polyline points="17 21 17 13 7 13 7 21"/>
@@ -246,6 +243,16 @@
               <div class="rule-control">
                 <input v-model.number="rulesForm.maxItemsPerRecord" type="number" class="rule-input font-mono" min="1" max="20" />
                 <span class="rule-unit">条</span>
+              </div>
+            </div>
+            <div class="rule-row">
+              <div class="rule-info">
+                <div class="rule-label">工单时限</div>
+                <div class="rule-desc">未完成工单超过此时限判定为超时，临近超时将自动提醒（默认 45 分钟）</div>
+              </div>
+              <div class="rule-control">
+                <input v-model.number="rulesForm.orderTimeLimit" type="number" class="rule-input font-mono" min="5" max="1440" />
+                <span class="rule-unit">分钟</span>
               </div>
             </div>
             <div v-if="store.isAdmin" class="rule-row">
@@ -298,7 +305,7 @@
       v-model:visible="showDialog"
       :mode="dialogMode"
       :user="dialogUser"
-      :stations="store.stations"
+      :stations="store.visibleStations"
     />
 
     <!-- 排班编辑弹窗 -->
@@ -382,6 +389,7 @@ onMounted(async () => {
   await Promise.all([
     store.fetchUsers(),
     store.fetchStations(),
+    store.fetchDistricts(),
     store.fetchSystemConfig(),
     store.fetchScheduleConfig(),
     store.fetchScheduleTable({ from: todayISO, days: scheduleDays })
@@ -394,9 +402,7 @@ onMounted(async () => {
 const stationForm = reactive({
   id: null,
   name: '',
-  code: '',
-  region: '',
-  voltage: ''
+  districtId: null
 })
 const savingStation = ref(false)
 
@@ -406,9 +412,7 @@ const loadStationForm = () => {
   Object.assign(stationForm, {
     id: st.id,
     name: st.name,
-    code: st.code || '',
-    region: st.region || '',
-    voltage: st.voltage || ''
+    districtId: st.districtId ?? null
   })
 }
 
@@ -421,9 +425,7 @@ const saveStation = async () => {
   try {
     await store.updateStation(stationForm.id, {
       name: stationForm.name,
-      code: stationForm.code,
-      region: stationForm.region,
-      voltage: stationForm.voltage
+      districtId: store.isAdmin ? stationForm.districtId : undefined
     })
     toast.success('站点信息已保存')
   } catch (e) {
@@ -433,22 +435,21 @@ const saveStation = async () => {
   }
 }
 
-// 新增站点（仅管理员）
+// 新增站点（市级超管/区县管理员）
 const creatingStation = ref(false)
-const newStationForm = reactive({ name: '', code: '' })
+const newStationForm = reactive({ name: '', districtId: null })
 const toggleCreateStation = () => {
   creatingStation.value = !creatingStation.value
-  if (!creatingStation.value) { newStationForm.name = ''; newStationForm.code = '' }
+  if (!creatingStation.value) { newStationForm.name = ''; newStationForm.districtId = null }
 }
 const submitCreateStation = async () => {
   try {
     const st = await store.createStation({
       name: newStationForm.name.trim(),
-      code: newStationForm.code.trim().toUpperCase()
+      districtId: store.isAdmin ? newStationForm.districtId : undefined
     })
     toast.success('站点已创建')
     newStationForm.name = ''
-    newStationForm.code = ''
     creatingStation.value = false
     // 切到新站点
     await store.setCurrentStation(st.id)
@@ -466,6 +467,7 @@ const selectStation = (e) => {
 // ---- 值班规则 ----
 const rulesForm = reactive({
   maxItemsPerRecord: 11,
+  orderTimeLimit: 45,
   allowEditHistory: false,
   autoStartTime: true,
   pendingNotify: true
@@ -477,6 +479,7 @@ const loadRulesForm = () => {
   // 每班最大事项数优先取站点级配置（后端实际读取该值）
   const st = store.stations.find(s => s.id === store.currentStationId)
   rulesForm.maxItemsPerRecord = Number(st?.maxDutyItemsPerRecord ?? map['duty.max_items_per_record'] ?? 11)
+  rulesForm.orderTimeLimit = Number(st?.orderTimeLimit ?? 45)
   rulesForm.allowEditHistory = map['duty.allow_edit_history'] === true
   rulesForm.autoStartTime = map['duty.auto_start_time'] !== false
   rulesForm.pendingNotify = map['duty.pending_notify'] !== false
@@ -486,11 +489,13 @@ const saveRules = async () => {
   savingRules.value = true
   try {
     const max = Math.max(1, Math.min(20, Number(rulesForm.maxItemsPerRecord) || 11))
+    const limit = Math.max(5, Math.min(1440, Number(rulesForm.orderTimeLimit) || 45))
     rulesForm.maxItemsPerRecord = max
+    rulesForm.orderTimeLimit = limit
     if (!store.isAdmin) {
-      // 所长：仅保存本所每班最大事项数（站点级），全局开关不开放
+      // 所长：仅保存本所站点级规则（每班最大事项数 / 工单时限），全局开关不开放
       if (!stationForm.id) throw new Error('未找到站点信息')
-      await store.updateStation(stationForm.id, { maxDutyItemsPerRecord: max })
+      await store.updateStation(stationForm.id, { maxDutyItemsPerRecord: max, orderTimeLimit: limit })
     } else {
       const jobs = [
         store.updateSystemConfig({
@@ -500,9 +505,9 @@ const saveRules = async () => {
           'duty.pending_notify': !!rulesForm.pendingNotify
         })
       ]
-      // 同步站点字段（后端工单上限实际读取站点 maxDutyItemsPerRecord）
+      // 同步站点字段（后端工单上限/工单时限实际读取站点配置）
       if (stationForm.id) {
-        jobs.push(store.updateStation(stationForm.id, { maxDutyItemsPerRecord: max }))
+        jobs.push(store.updateStation(stationForm.id, { maxDutyItemsPerRecord: max, orderTimeLimit: limit }))
       }
       await Promise.all(jobs)
       Object.assign(store.systemConfigMap, {

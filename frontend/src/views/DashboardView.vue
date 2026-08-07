@@ -14,7 +14,7 @@
           </svg>
           {{ refreshing ? '刷新中...' : '刷新数据' }}
         </button>
-        <button class="btn btn-primary" @click="$router.push('/records/create')">
+        <button v-if="store.canCreateRecord" class="btn btn-primary" @click="$router.push('/records/create')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19"/>
             <line x1="5" y1="12" x2="19" y2="12"/>
@@ -98,6 +98,8 @@
               >
                 <span class="item-num font-mono">{{ String(idx + 1).padStart(2, '0') }}</span>
                 <span class="item-content">{{ item.content }}</span>
+                <span v-if="!item.isCompleted && itemTimeout(item)?.state === 'warning'" class="timeout-badge warn">{{ itemTimeout(item).label }}</span>
+                <span v-else-if="!item.isCompleted && itemTimeout(item)?.state === 'overdue'" class="timeout-badge crit">已超时</span>
                 <span v-if="item.acceptTime" class="item-time font-mono">
                   {{ item.acceptTime }}<span v-if="item.endTime">→{{ item.endTime }}</span>
                 </span>
@@ -107,7 +109,7 @@
 
           <div v-else class="empty-block">
             <p class="empty-text">今日还没有值班记录</p>
-            <button class="btn btn-secondary" @click="$router.push('/records/create')">
+            <button v-if="store.canCreateRecord" class="btn btn-secondary" @click="$router.push('/records/create')">
               立即创建
             </button>
           </div>
@@ -139,23 +141,6 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- 值班排班 -->
-    <div class="card panel-schedule">
-      <div class="card-header">
-        <h2 class="card-title">值班排班</h2>
-        <span class="card-meta">未来 {{ dashboardDays }} 天 · 高亮为我的值班</span>
-      </div>
-      <div class="card-body">
-        <ScheduleTable
-          v-if="store.scheduleConfig.configured"
-          :rows="store.scheduleTable"
-          :highlight-date="scheduleToday"
-          :highlight-user-ids="[store.user.id]"
-        />
-        <div v-else class="empty-mini">排班尚未配置，请联系管理员设置</div>
       </div>
     </div>
 
@@ -242,7 +227,7 @@
               <div class="resp-value font-mono">
                 <span class="resp-num text-crit">{{ metrics.overdueRate }}%</span>
               </div>
-              <div class="resp-sub">锁定记录中未完成</div>
+              <div class="resp-sub">未完成超时或处理超时限</div>
             </div>
           </div>
           <div class="resp-bar">
@@ -299,6 +284,81 @@
         </div>
       </div>
     </div>
+
+    <!-- 重复工单统计 -->
+    <div class="card panel-duplicate">
+      <div class="card-header">
+        <h2 class="card-title">重复工单</h2>
+        <span class="card-meta">客户重复 {{ dupStats.customerGroups.length }} 组 · 地址重复 {{ dupStats.addressGroups.length }} 组</span>
+      </div>
+      <div class="card-body">
+        <div v-if="dupStats.total === 0" class="empty-mini">本区间暂无重复工单</div>
+        <template v-else>
+          <div class="dup-summary">
+            <span class="dup-total-num font-mono">{{ dupStats.total }}</span>
+            <span class="dup-total-unit">条</span>
+            <span class="dup-summary-sub">同一客户或同一地址报修 ≥2 次 · 已去重</span>
+          </div>
+
+          <div v-if="dupStats.customerGroups.length" class="dup-groups">
+            <h3 class="dup-group-title">客户名称重复</h3>
+            <div v-for="g in dupStats.customerGroups" :key="'c' + g.key" class="dup-group">
+              <div class="dup-group-head">
+                <span class="dup-badge cust">{{ g.key }}</span>
+                <span class="dup-count">{{ g.count }} 次</span>
+              </div>
+              <div class="dup-items">
+                <div v-for="it in g.items" :key="it.id" class="dup-item">
+                  <span class="dup-date font-mono">{{ it._recordDate }}</span>
+                  <span class="dup-type">{{ it.businessType }}</span>
+                  <span class="dup-content">{{ it.content }}</span>
+                  <span v-if="it.acceptTime" class="dup-time font-mono">
+                    {{ it.acceptTime }}<span v-if="it.endTime">→{{ it.endTime }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="dupStats.addressGroups.length" class="dup-groups">
+            <h3 class="dup-group-title">联系地址重复</h3>
+            <div v-for="g in dupStats.addressGroups" :key="'a' + g.key" class="dup-group">
+              <div class="dup-group-head">
+                <span class="dup-badge addr">{{ g.key }}</span>
+                <span class="dup-count">{{ g.count }} 次</span>
+              </div>
+              <div class="dup-items">
+                <div v-for="it in g.items" :key="it.id" class="dup-item">
+                  <span class="dup-date font-mono">{{ it._recordDate }}</span>
+                  <span class="dup-type">{{ it.businessType }}</span>
+                  <span class="dup-content">{{ it.content }}</span>
+                  <span v-if="it.acceptTime" class="dup-time font-mono">
+                    {{ it.acceptTime }}<span v-if="it.endTime">→{{ it.endTime }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- 值班排班 -->
+    <div class="card panel-schedule">
+      <div class="card-header">
+        <h2 class="card-title">值班排班</h2>
+        <span class="card-meta">未来 {{ dashboardDays }} 天 · 高亮为我的值班</span>
+      </div>
+      <div class="card-body">
+        <ScheduleTable
+          v-if="store.scheduleConfig.configured"
+          :rows="store.scheduleTable"
+          :highlight-date="scheduleToday"
+          :highlight-user-ids="[store.user.id]"
+        />
+        <div v-else class="empty-mini">排班尚未配置，请联系管理员设置</div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -310,6 +370,7 @@ import TrendChart from '@/components/TrendChart.vue'
 import DonutChart from '@/components/DonutChart.vue'
 import ScheduleTable from '@/components/ScheduleTable.vue'
 import { getCurrentDateISO } from '@/data/mockData'
+import { getItemTimeoutState } from '@/utils/orderTimeout'
 
 const store = useAppStore()
 const range = ref('month')
@@ -358,6 +419,11 @@ const rangeMeta = computed(() => `${rangeBounds.value.start} → ${rangeBounds.v
 // ===== 现有 activeRecord 兼容 =====
 const activeRecord = computed(() => store.activeRecord)
 
+// 工单超时状态（统一口径见 utils/orderTimeout.js）
+const itemTimeout = (item) => activeRecord.value
+  ? getItemTimeoutState(item, activeRecord.value.recordDate, store.currentStationOrderTimeLimit)
+  : null
+
 // 值班员：优先显示当天排班名单，未配置排班时回退创建人
 const officerText = (r) => (r?.dutyOfficers && r.dutyOfficers.length)
   ? r.dutyOfficers.join(' / ')
@@ -380,6 +446,9 @@ const greetingText = computed(() => {
 
 // ===== 关键指标 =====
 const metrics = computed(() => store.efficiencyMetrics(rangeBounds.value.start, rangeBounds.value.end))
+
+// ===== 重复工单（同一客户或同一地址报修 ≥2 次） =====
+const dupStats = computed(() => store.duplicateWorkOrders(rangeBounds.value.start, rangeBounds.value.end))
 
 // ===== 趋势图数据 =====
 const trendData = computed(() => {
@@ -641,6 +710,18 @@ onMounted(() => {
 }
 .item-content { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-time { font-size: 11px; color: $text-secondary; flex-shrink: 0; }
+.timeout-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &.warn { background: $warn-soft; color: $warn; }
+  &.crit { background: $crit-soft; color: $crit; }
+}
 
 .empty-block {
   display: flex;
@@ -827,4 +908,87 @@ onMounted(() => {
   background: linear-gradient(90deg, rgba(59,130,246,0.15), rgba(245,158,11,0.5), rgba(239,68,68,1));
 }
 .legend-max { margin-left: auto; }
+
+// ===== 重复工单 =====
+.panel-duplicate { margin-bottom: 16px; }
+
+.dup-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.dup-total-num {
+  font-size: 28px;
+  font-weight: 700;
+  color: $crit;
+  line-height: 1;
+}
+.dup-total-unit {
+  font-size: 14px;
+  color: $text-muted;
+  font-weight: 500;
+}
+.dup-summary-sub { font-size: 12px; color: $text-muted; }
+
+.dup-groups { display: flex; flex-direction: column; gap: 8px; }
+.dup-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-secondary;
+  margin: 4px 0 0;
+}
+.dup-group {
+  padding: 10px 12px;
+  background: $bg-page;
+  border-radius: $radius-md;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dup-group-head { display: flex; align-items: center; gap: 8px; }
+.dup-badge {
+  padding: 2px 8px;
+  border-radius: $radius-full;
+  font-size: 11px;
+  font-weight: 600;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.cust { background: $warn-soft; color: $warn; }
+  &.addr { background: $crit-soft; color: $crit; }
+}
+.dup-count { font-size: 11px; color: $text-muted; }
+
+.dup-items { display: flex; flex-direction: column; gap: 4px; }
+.dup-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: $bg-card;
+  border: 1px solid $border-subtle;
+  border-radius: $radius-sm;
+  font-size: 12px;
+}
+.dup-date { color: $text-muted; flex-shrink: 0; }
+.dup-type {
+  color: $text-secondary;
+  flex-shrink: 0;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dup-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: $text-primary;
+}
+.dup-time { font-size: 11px; color: $text-secondary; flex-shrink: 0; }
 </style>

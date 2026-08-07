@@ -118,6 +118,7 @@ const loading = ref(false)
 
 const rolePresets = [
   { label: '值班员', name: '李栋', username: 'lidong', password: '@zbdl-95598' },
+  { label: '区县管理员', name: '张店区管理员', username: 'zd_admin', password: 'zd123456' },
   { label: '管理员', name: '超级管理员', username: 'admin', password: 'admin123' }
 ]
 

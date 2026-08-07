@@ -23,7 +23,8 @@ export const systemConfig = {
   voltage: '10kV',
   feeders: 24,
   transformers: 86,
-  maxDutyItemsPerRecord: 11
+  maxDutyItemsPerRecord: 11,
+  orderTimeLimit: 45
 }
 
 // ---- 天气选项 ----
@@ -38,9 +39,10 @@ export const weatherOptions = [
 
 // ---- 角色选项 ----
 export const roleMap = {
-  duty_officer: { label: '值班员',   color: 'info'  },
-  supervisor:   { label: '所长',     color: 'warn'  },
-  admin:        { label: '管理员',   color: 'crit'  }
+  duty_officer:   { label: '值班员',     color: 'info'  },
+  supervisor:     { label: '所长',       color: 'warn'  },
+  district_admin: { label: '区县管理员', color: 'violet' },
+  admin:          { label: '管理员',     color: 'crit'  }
 }
 
 // ---- 状态选项 ----

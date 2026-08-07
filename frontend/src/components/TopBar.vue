@@ -73,8 +73,8 @@
         </transition>
       </div>
 
-      <!-- 站点切换器：仅超级管理员可见 -->
-      <div v-if="store.isAdmin && store.stations.length" ref="stationSwitcher" class="station-switcher">
+      <!-- 站点切换器：市级超管/区县管理员可见 -->
+      <div v-if="store.canSwitchStation && store.visibleStations.length" ref="stationSwitcher" class="station-switcher">
         <button class="station-trigger" type="button" :class="{ open: stationOpen }" @click="toggleStationOpen">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -94,8 +94,30 @@
             @mousedown.prevent
           >
             <div class="station-dropdown-title">切换供电所</div>
+            <!-- 市级超管：按区县分组显示 -->
+            <template v-if="store.isAdmin && groupedStations">
+              <div v-for="g in groupedStations" :key="g.id" class="station-group">
+                <div class="station-group-label">{{ g.name }}</div>
+                <button
+                  v-for="s in g.stations"
+                  :key="s.id"
+                  type="button"
+                  class="station-option"
+                  :class="{ active: s.id === store.currentStationId }"
+                  @click="pickStation(s.id)"
+                >
+                  <span class="station-option-dot" :class="{ active: s.id === store.currentStationId }"></span>
+                  <span class="station-option-name">{{ s.name }}</span>
+                  <svg v-if="s.id === store.currentStationId" class="station-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+              </div>
+            </template>
+            <!-- 区县管理员：平铺本区县站点 -->
             <button
-              v-for="s in store.stations"
+              v-else
+              v-for="s in store.visibleStations"
               :key="s.id"
               type="button"
               class="station-option"
@@ -147,10 +169,21 @@ const pageTitle = computed(() => {
   return map[route.name] || route.meta.title || '主控台'
 })
 
-// 当前站点名（非管理员展示用）
+// 当前站点名（非切换角色展示用）
 const currentStationName = computed(() => {
   const st = store.stations.find(s => s.id === store.currentStationId)
   return st ? st.name : (store.systemConfig.stationName || '')
+})
+
+// 市级超管站点按区县分组（下拉展示）；区县管理员等返回 null 走平铺
+const groupedStations = computed(() => {
+  if (store.user.role !== 'admin') return null
+  const byDistrict = {}
+  store.districts.forEach(d => { byDistrict[d.id] = { ...d, stations: [] } })
+  store.visibleStations.forEach(s => {
+    if (byDistrict[s.districtId]) byDistrict[s.districtId].stations.push(s)
+  })
+  return Object.values(byDistrict).filter(g => g.stations.length)
 })
 
 // ===== 站点切换下拉（自定义面板，Teleport 到 body 避免裁剪） =====
@@ -173,6 +206,10 @@ const toggleStationOpen = () => {
 
 const pickStation = (id) => {
   stationOpen.value = false
+  // 记录详情/编辑页属于旧供电所：切站后旧记录在新站不存在，跳到当前供电所的值班记录列表
+  if (route.name === 'RecordDetail' || route.name === 'RecordEdit') {
+    router.push('/records')
+  }
   store.setCurrentStation(id)
 }
 
@@ -266,6 +303,8 @@ onMounted(() => {
   document.addEventListener('click', onStationDocClick)
   // 站点切换器依赖站点列表：登录后未加载则拉取（默认只有进系统配置页才拉）
   if (!store.stations.length) store.fetchStations()
+  // 区县列表：市级超管按区县分组展示
+  if (!store.districts.length) store.fetchDistricts()
 })
 onUnmounted(() => {
   if (timer) clearInterval(timer)
@@ -590,6 +629,25 @@ onUnmounted(() => {
   letter-spacing: $ls-wider;
   text-transform: uppercase;
   color: $text-muted;
+}
+
+.station-group {
+  padding: 2px 0;
+
+  + .station-group {
+    margin-top: 4px;
+    border-top: 1px solid $border-subtle;
+    padding-top: 4px;
+  }
+}
+
+.station-group-label {
+  padding: 5px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: $text-muted;
+  letter-spacing: $ls-wide;
+  text-transform: uppercase;
 }
 
 .station-option {

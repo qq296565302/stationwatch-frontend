@@ -32,7 +32,7 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
-  type: { type: String, default: 'info' }, // success / error / info / warning
+  type: { type: String, default: 'info' }, // success / error / info / warning / alert
   title: { type: String, default: '' },
   message: { type: String, required: true },
   duration: { type: Number, default: 3000 }
@@ -148,6 +148,37 @@ onBeforeUnmount(() => {
 }
 .toast-warning {
   .toast-icon { background: $warn-soft; color: $warn; }
+}
+
+// 高显眼告警（工单已超时等）：红色主调 + 图标呼吸动画，区别于普通通知
+.toast-alert {
+  border: 1.5px solid rgba(220, 38, 38, 0.55);
+  background: linear-gradient(180deg, #fff5f5, #ffe4e6);
+  box-shadow: 0 10px 28px rgba(220, 38, 38, 0.20), 0 2px 8px rgba(220, 38, 38, 0.10);
+
+  .toast-icon {
+    background: $crit;
+    color: #fff;
+    animation: alert-pulse 1.2s ease-in-out infinite;
+  }
+
+  .toast-title {
+    color: #b91c1c;
+    font-size: 14px;
+  }
+
+  .toast-message {
+    color: #7f1d1d;
+    font-weight: 500;
+  }
+
+  .toast-close { color: rgba(185, 28, 28, 0.6); }
+  .toast-close:hover { color: #b91c1c; background: rgba(220, 38, 38, 0.08); }
+}
+
+@keyframes alert-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }
+  50%      { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
 }
 
 // ---- 动画 ----

@@ -74,6 +74,15 @@
                 <option v-for="s in stations" :key="s.id" :value="s.id">{{ s.name }}</option>
               </select>
             </div>
+
+            <!-- 市级超管创建区县管理员：选择所属区县 -->
+            <div v-if="store.isAdmin && form.role === 'district_admin'" class="field">
+              <label class="field-label">所属区县 <span class="req">*</span></label>
+              <select v-model="form.districtId" class="field-input">
+                <option :value="null">选择区县</option>
+                <option v-for="d in store.districts" :key="d.id" :value="d.id">{{ d.name }}</option>
+              </select>
+            </div>
           </template>
 
           <!-- 编辑：基本信息 -->
@@ -162,10 +171,17 @@ const emit = defineEmits(['update:visible', 'saved'])
 const store = useAppStore()
 const toast = useToast()
 
-const roleOptions = [
-  { value: 'duty_officer', label: '值班员', desc: '填写本所值班记录' },
-  { value: 'supervisor',   label: '所长',   desc: '查看本所记录及管理' }
-]
+// 角色选项：市级超管可分配区县管理员；区县管理员/所长不可分配管理员
+const roleOptions = computed(() => {
+  const opts = [
+    { value: 'duty_officer', label: '值班员', desc: '填写本所值班记录' },
+    { value: 'supervisor',   label: '所长',   desc: '查看本所记录及管理' }
+  ]
+  if (store.isAdmin) {
+    opts.push({ value: 'district_admin', label: '区县管理员', desc: '管理本区县供电所' })
+  }
+  return opts
+})
 
 // 所长仅能操作本所用户，站点下拉锁定
 const isStationLocked = computed(() => store.user.role !== 'admin')
@@ -176,6 +192,7 @@ const form = reactive({
   realName: '',
   role: 'duty_officer',
   stationId: null,
+  districtId: null,
   isActive: true
 })
 
@@ -193,7 +210,10 @@ const submitText = computed(() => ({
 
 const canSubmit = computed(() => {
   if (props.mode === 'create') {
-    return form.username.trim().length >= 2 && !!form.realName.trim() && form.password.length >= 6
+    if (form.username.trim().length < 2 || !form.realName.trim() || form.password.length < 6) return false
+    // 市级超管创建区县管理员需选择区县
+    if (store.isAdmin && form.role === 'district_admin' && !form.districtId) return false
+    return true
   }
   if (props.mode === 'edit') return !!form.realName.trim()
   return true
@@ -208,6 +228,7 @@ watch(() => props.visible, (v) => {
   form.realName = u.realName || ''
   form.role = u.role || 'duty_officer'
   form.stationId = isStationLocked.value ? store.currentStationId : (u.stationId ?? null)
+  form.districtId = u.districtId ?? null
   form.isActive = u.isActive !== false
 })
 
@@ -221,7 +242,8 @@ const onSubmit = async () => {
         password: form.password,
         realName: form.realName.trim(),
         role: form.role,
-        stationId: isStationLocked.value ? store.currentStationId : form.stationId
+        stationId: isStationLocked.value ? store.currentStationId : form.stationId,
+        districtId: form.role === 'district_admin' ? form.districtId : undefined
       })
       toast.success('值班员已创建')
     } else if (props.mode === 'edit') {
@@ -229,6 +251,7 @@ const onSubmit = async () => {
         realName: form.realName.trim(),
         role: form.role,
         stationId: isStationLocked.value ? store.currentStationId : form.stationId,
+        districtId: form.role === 'district_admin' ? form.districtId : undefined,
         isActive: form.isActive
       })
       toast.success('已保存修改')

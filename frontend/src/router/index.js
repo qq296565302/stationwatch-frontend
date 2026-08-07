@@ -29,7 +29,7 @@ const routes = [
     path: '/records/create',
     name: 'RecordCreate',
     component: () => import('@/views/CreateRecordView.vue'),
-    meta: { title: '新建记录', hidden: true }
+    meta: { title: '新建记录', hidden: true, roles: ['duty_officer', 'supervisor', 'admin'] }
   },
   {
     path: '/records/:id',
@@ -47,13 +47,13 @@ const routes = [
     path: '/export',
     name: 'Export',
     component: () => import('@/views/ExportView.vue'),
-    meta: { title: '导出管理', icon: 'download', roles: ['supervisor', 'admin'] }
+    meta: { title: '导出管理', icon: 'download', roles: ['supervisor', 'district_admin', 'admin'] }
   },
   {
     path: '/system',
     name: 'System',
     component: () => import('@/views/SystemView.vue'),
-    meta: { title: '系统配置', icon: 'settings', roles: ['admin', 'supervisor'] }
+    meta: { title: '系统配置', icon: 'settings', roles: ['admin', 'district_admin', 'supervisor'] }
   },
   {
     path: '/:pathMatch(.*)*',

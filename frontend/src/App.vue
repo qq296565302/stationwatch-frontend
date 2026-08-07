@@ -32,11 +32,15 @@ import AppLayout from '@/components/AppLayout.vue'
 import Toast from '@/components/Toast.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useToast } from '@/composables/useToast'
+import { useOrderReminder } from '@/composables/useOrderReminder'
 
 const route = useRoute()
 const useLayout = computed(() => route.meta.layout !== 'blank')
 
 const { toasts, remove } = useToast()
+
+// 全局临近超时提醒（弹窗 + 警报声）
+useOrderReminder()
 </script>
 
 <style lang="scss">

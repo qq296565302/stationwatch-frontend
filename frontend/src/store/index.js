@@ -7,15 +7,9 @@ import {
   getCurrentDateISO,
   getCurrentTime
 } from '@/data/mockData'
+import { toMinutes, getItemTimeoutState } from '@/utils/orderTimeout'
 
 const STORAGE_KEY = 'dutyguard_auth'
-
-// HH:MM -> 总分钟数
-const toMinutes = (hhmm) => {
-  if (!hhmm) return 0
-  const [h, m] = hhmm.split(':').map(Number)
-  return (h || 0) * 60 + (m || 0)
-}
 
 const loadAuth = () => {
   try {
@@ -38,6 +32,7 @@ const normalizeUser = (u) => {
     role,
     roleName,
     stationId: u.stationId ?? null,
+    districtId: u.districtId ?? null,
     stationName: u.stationName || '',
     avatar: realName?.slice(-1) || u.username?.slice(-1) || '?'
   }
@@ -73,6 +68,7 @@ export const useAppStore = defineStore('app', {
       role: 'duty_officer',
       roleName: '值班员',
       stationId: null,
+      districtId: null,
       stationName: '',
       avatar: '?'
     },
@@ -83,8 +79,10 @@ export const useAppStore = defineStore('app', {
 
     // 用户列表（系统配置-值班员管理）
     users: [],
-    // 站点列表（新增/编辑值班员时选择所属站点）
+    // 站点列表（新增/编辑值班员时选择所属站点；已按角色可见范围过滤）
     stations: [],
+    // 区县列表（组织层级：市级→区县→供电所）
+    districts: [],
 
     // 系统配置
     systemConfig: {
@@ -139,13 +137,33 @@ export const useAppStore = defineStore('app', {
   getters: {
     // ===== 角色权限辅助（供路由/按钮显隐复用） =====
     isAdmin(state) { return state.user.role === 'admin' },
-    canExport(state) { return ['supervisor', 'admin'].includes(state.user.role) },
+    isDistrictAdmin(state) { return state.user.role === 'district_admin' },
+    // 可在站点间切换：市级超管（全市）与区县管理员（本区县）
+    canSwitchStation(state) { return ['admin', 'district_admin'].includes(state.user.role) },
+    // 可管理站点/账号：市级超管与区县管理员
+    canManageStation(state) { return ['admin', 'district_admin'].includes(state.user.role) },
+    // 可创建/编辑值班记录：区县管理员无此权限
+    canCreateRecord(state) { return state.user.role !== 'district_admin' },
+    canExport(state) { return ['supervisor', 'district_admin', 'admin'].includes(state.user.role) },
     canLock(state) { return ['supervisor', 'admin'].includes(state.user.role) },
-    canEditRecord: (state) => (record) =>
-      state.user.role !== 'duty_officer' ||
-      (record && record.creatorId === state.user.id),
+    // 当前用户可见站点列表：admin 全部、district_admin 本区县、其余仅当前站
+    visibleStations(state) {
+      if (state.user.role === 'admin') return state.stations
+      if (state.user.role === 'district_admin') {
+        return state.stations.filter(s => s.districtId === state.user.districtId)
+      }
+      return state.stations.filter(s => s.id === state.currentStationId)
+    },
+    canEditRecord: (state) => (record) => {
+      // 区县管理员无值班记录编辑权限
+      if (state.user.role === 'district_admin') return false
+      return state.user.role !== 'duty_officer' ||
+        (record && record.creatorId === state.user.id)
+    },
     // 编辑权限（含锁定记录）：锁定记录仅超级管理员可编辑，其余走 canEditRecord 逻辑
     canEditRecordFor: (state) => (record) => {
+      // 区县管理员无值班记录编辑权限
+      if (state.user.role === 'district_admin') return false
       if (record && record.status === 'locked') {
         return state.user.role === 'admin'
       }
@@ -190,6 +208,11 @@ export const useAppStore = defineStore('app', {
       return total === 0 ? 0 : Math.round((done / total) * 100)
     },
 
+    // 当前站点工单时限（分钟），站点级配置，缺省 45
+    currentStationOrderTimeLimit(state) {
+      return state.stations.find(s => s.id === state.currentStationId)?.orderTimeLimit ?? 45
+    },
+
     // ===== 聚合统计 =====
     itemsInRange: (state) => (startISO, endISO) => {
       const result = []
@@ -226,31 +249,67 @@ export const useAppStore = defineStore('app', {
       })
       return Array.from(map.values()).sort((a, b) => b.value - a.value)
     },
+    // 重复工单统计：同一客户名称 或 同一联系地址 任一重复（≥2 次）即计入；同时命中两条的工单去重后只计 1 条
+    duplicateWorkOrders: (state) => (startISO, endISO) => {
+      const items = []
+      state.records.forEach(r => {
+        if (r.recordDate < startISO || r.recordDate > endISO) return
+        r.dutyItems.forEach(it => { if (it.content) items.push({ ...it, _recordDate: r.recordDate }) })
+      })
+      // 空值不参与分组（空值之间不算"同一"）
+      const key = (v) => { const s = String(v ?? '').trim(); return s || null }
+      const group = (arr, keyFn) => {
+        const map = new Map()
+        arr.forEach(it => {
+          const k = keyFn(it)
+          if (!k) return
+          if (!map.has(k)) map.set(k, [])
+          map.get(k).push(it)
+        })
+        return Array.from(map.entries())
+          .filter(([, list]) => list.length >= 2) // 出现 ≥2 次
+          .map(([k, list]) => ({
+            key: k,
+            count: list.length,
+            items: [...list].sort((a, b) => a._recordDate.localeCompare(b._recordDate))
+          }))
+          .sort((a, b) => b.count - a.count)
+      }
+      const customerGroups = group(items, it => key(it.customerName))
+      const addressGroups = group(items, it => key(it.customerAddress))
+      // item.id 全局唯一（后端 nextIdOf('item')），去重安全
+      const dupIds = new Set()
+      ;[...customerGroups, ...addressGroups].forEach(g => g.items.forEach(it => dupIds.add(it.id)))
+      return { total: dupIds.size, customerGroups, addressGroups }
+    },
     efficiencyMetrics: (state) => (startISO, endISO) => {
       const allItems = []
       state.records.forEach(r => {
         if (r.recordDate < startISO || r.recordDate > endISO) return
-        r.dutyItems.forEach(item => { if (item.content) allItems.push(item) })
+        r.dutyItems.forEach(item => { if (item.content) allItems.push({ ...item, _recordDate: r.recordDate }) })
       })
       const total = allItems.length
       const done = allItems.filter(i => i.isCompleted).length
       const completion = total === 0 ? 0 : Math.round((done / total) * 100)
       const durations = allItems
         .filter(i => i.isCompleted && i.acceptTime && i.endTime)
-        .map(i => toMinutes(i.endTime) - toMinutes(i.acceptTime))
+        .map(i => {
+          let d = toMinutes(i.endTime) - toMinutes(i.acceptTime)
+          if (d < 0) d += 1440 // 跨天完成补 1440
+          return d
+        })
         .filter(d => d > 0 && d < 24 * 60)
       const avgDuration = durations.length ? Math.round(durations.reduce((s, x) => s + x, 0) / durations.length) : 0
       const sorted = [...durations].sort((a, b) => a - b)
       const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0
       const p90 = sorted.length ? sorted[Math.floor(sorted.length * 0.9)] : 0
-      // 超时工单：已锁定的值班记录中，未标记完成的工单
+      // 超时工单（按工单时限判定，统一口径见 utils/orderTimeout.js）：
+      //   未完成且从受理起超过时限，或已完成但处理耗时超过时限
+      const limit = state.stations.find(s => s.id === state.currentStationId)?.orderTimeLimit ?? 45
       let overdue = 0
-      state.records.forEach(r => {
-        if (r.recordDate < startISO || r.recordDate > endISO) return
-        if (r.status !== 'locked') return
-        r.dutyItems.forEach(item => {
-          if (item.content && !item.isCompleted) overdue++
-        })
+      allItems.forEach(item => {
+        const st = getItemTimeoutState(item, item._recordDate, limit)
+        if (st && st.state !== 'ok' && st.state !== 'warning') overdue++
       })
       return { total, done, completion, avgDuration, median, p90, overdue, overdueRate: total === 0 ? 0 : Math.round((overdue / total) * 100) }
     },
@@ -290,6 +349,8 @@ export const useAppStore = defineStore('app', {
         accessToken: data.accessToken,
         refreshToken: data.refreshToken
       })
+      // 区县管理员等无 stationId 的用户：拉取可见站点并兜底首个，维持单站视角
+      if (!user.stationId) await this.fetchStations()
       return true
     },
 
@@ -298,7 +359,7 @@ export const useAppStore = defineStore('app', {
       this.isLoggedIn = false
       this.user = {
         id: 0, username: '', realName: '', role: 'duty_officer',
-        roleName: '值班员', stationId: null, stationName: '', avatar: '?'
+        roleName: '值班员', stationId: null, districtId: null, stationName: '', avatar: '?'
       }
       this.records = []
       this.recordsLoaded = false
@@ -315,6 +376,8 @@ export const useAppStore = defineStore('app', {
         this.isLoggedIn = true
         this.currentStationId = user.stationId
         this.systemConfig.stationName = user.stationName || this.systemConfig.stationName
+        // 区县管理员等无 stationId 的用户：拉取可见站点并兜底首个
+        if (!user.stationId) await this.fetchStations()
       } catch (e) {
         this.isLoggedIn = false
         throw e
@@ -354,7 +417,7 @@ export const useAppStore = defineStore('app', {
       }
     },
 
-    // 切换当前站点（admin）：同步站点名并刷新各页数据
+    // 切换当前站点（市级超管/区县管理员）：同步站点名并刷新各页数据
     async setCurrentStation(id) {
       this.currentStationId = Number(id)
       const st = this.stations.find(s => s.id === Number(id))
@@ -372,6 +435,24 @@ export const useAppStore = defineStore('app', {
           this.fetchExportHistory(1, 20)
         ])
       }
+    },
+
+    // 区县列表（TopBar 切换器按区县分组、SystemView 站点表单区县下拉用）
+    async fetchDistricts() {
+      try {
+        const resp = await api.get('/districts')
+        const data = resp.data || resp
+        this.districts = Array.isArray(data) ? data : []
+      } catch (e) {
+        this.districts = []
+      }
+    },
+
+    // 删除站点（市级超管/区县管理员，后端会校验引用）
+    async deleteStation(id) {
+      const resp = await api.delete(`/stations/${id}`)
+      this.stations = this.stations.filter(s => s.id !== Number(id))
+      return resp.data || resp
     },
 
     // 新增站点（仅管理员）
@@ -489,7 +570,10 @@ export const useAppStore = defineStore('app', {
 
     async fetchRecordById(id) {
       const resp = await api.get(`/records/${id}`)
-      const data = resp.data || resp
+      // 只取业务 data；错误/无效响应（如 /records/undefined 或 404）时 data 为 null，
+      // 不污染 records，避免切站/路由跳转瞬间插入"未知记录"
+      const data = resp?.data ?? null
+      if (!data || typeof data !== 'object' || data.id == null) return null
       const record = normalizeRecord(data)
       const idx = this.records.findIndex(r => r.id === record.id)
       if (idx >= 0) this.records[idx] = record
@@ -502,7 +586,8 @@ export const useAppStore = defineStore('app', {
         const params = { date }
         if (this.currentStationId) params.stationId = this.currentStationId
         const resp = await api.get('/records/find-by-date', { params })
-        const data = resp.data || resp
+        // 只取业务 data；无记录时 data 为 null，不可回退到响应体
+        const data = resp?.data ?? null
         if (!data) return null
         const record = normalizeRecord(data)
         const idx = this.records.findIndex(r => r.id === record.id)
@@ -519,7 +604,8 @@ export const useAppStore = defineStore('app', {
       try {
         const params = this.currentStationId ? { stationId: this.currentStationId } : {}
         const resp = await api.get('/records/today', { params })
-        const data = resp.data || resp
+        // 只取业务 data；后端无记录时 data 为 null，绝不可回退到整个响应体（否则会插入幽灵记录）
+        const data = resp?.data ?? null
         if (!data) return null
         const record = normalizeRecord(data)
         const idx = this.records.findIndex(r => r.id === record.id)

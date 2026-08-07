@@ -313,6 +313,7 @@ body {
   &-crit  { background: $crit-soft;  color: #b91c1c;    border-color: $crit-border; }
   &-info  { background: $info-soft;  color: $accent;    border-color: $accent-border; }
   &-muted { background: $bg-subtle;  color: $text-secondary; border-color: $border-base; }
+  &-violet{ background: rgba(124, 58, 237, 0.10); color: #6d28d9; border-color: rgba(124, 58, 237, 0.25); }
 }
 
 // ---- 状态点 ----

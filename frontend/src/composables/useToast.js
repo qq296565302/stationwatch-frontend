@@ -26,6 +26,7 @@ export const useToast = () => {
     success: (message, title = '成功') => show({ type: 'success', title, message }),
     error:   (message, title = '出错了') => show({ type: 'error', title, message }),
     info:    (message, title = '') => show({ type: 'info', title, message }),
-    warning: (message, title = '注意') => show({ type: 'warning', title, message })
+    warning: (message, title = '注意') => show({ type: 'warning', title, message }),
+    alert:   (message, title = '告警') => show({ type: 'alert', title, message, duration: 8000 })
   }
 }

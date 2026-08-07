@@ -173,7 +173,10 @@
                   </div>
                   <div v-if="item.acceptTime && item.endTime" class="time-duration font-mono">
                     耗时 {{ calcDuration(item.acceptTime, item.endTime) }}
+                    <span v-if="itemTimeout(item)?.state === 'completed_overdue'" class="timeout-badge crit">{{ itemTimeout(item).label }}</span>
                   </div>
+                  <span v-if="!item.isCompleted && itemTimeout(item)?.state === 'warning'" class="timeout-badge warn">{{ itemTimeout(item).label }}</span>
+                  <span v-else-if="!item.isCompleted && itemTimeout(item)?.state === 'overdue'" class="timeout-badge crit">已超时</span>
                   <button
                     v-if="!item.isCompleted && item.result && store.canEditRecordFor(record)"
                     class="btn btn-mini btn-mini-success"
@@ -299,6 +302,9 @@
               <span v-if="detailItem.acceptTime || detailItem.endTime" class="status-time font-mono">
                 {{ detailItem.acceptTime || '--:--' }} → {{ detailItem.endTime || '--:--' }}
               </span>
+              <span v-if="!detailItem.isCompleted && itemTimeout(detailItem)?.state === 'warning'" class="timeout-badge warn">{{ itemTimeout(detailItem).label }}</span>
+              <span v-else-if="!detailItem.isCompleted && itemTimeout(detailItem)?.state === 'overdue'" class="timeout-badge crit">已超时</span>
+              <span v-else-if="detailItem.isCompleted && itemTimeout(detailItem)?.state === 'completed_overdue'" class="timeout-badge crit">{{ itemTimeout(detailItem).label }}</span>
             </div>
 
             <div class="detail-fields">
@@ -380,6 +386,7 @@ import ComboboxInput from '@/components/ComboboxInput.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { getCurrentTime } from '@/data/mockData'
+import { getItemTimeoutState } from '@/utils/orderTimeout'
 
 const route = useRoute()
 const router = useRouter()
@@ -388,6 +395,11 @@ const toast = useToast()
 const confirm = useConfirm()
 
 const record = computed(() => store.getRecordById(route.params.id))
+
+// 工单超时状态（统一口径见 utils/orderTimeout.js）
+const itemTimeout = (item) => record.value
+  ? getItemTimeoutState(item, record.value.recordDate, store.currentStationOrderTimeLimit)
+  : null
 
 // 加载状态：初始为 true，刷新/进入页面时先显示加载中，避免误报"记录不存在"
 const loading = ref(true)
@@ -577,8 +589,8 @@ onMounted(() => {
   loadDetail()
 })
 
-// 路由变化（编辑后返回）刷新
-watch(() => route.params.id, () => loadDetail())
+// 路由变化（编辑后返回）刷新；导航离开时 id 变 undefined 则跳过
+watch(() => route.params.id, (id) => { if (id) loadDetail() })
 </script>
 
 <style lang="scss" scoped>
@@ -991,6 +1003,28 @@ watch(() => route.params.id, () => loadDetail())
   border-radius: $radius-sm;
   font-size: 10px;
   letter-spacing: $ls-wide;
+}
+
+// ===== 工单超时徽标 =====
+.timeout-badge {
+  display: inline-block;
+  padding: 2px $space-2;
+  border-radius: $radius-sm;
+  font-size: 10px;
+  letter-spacing: $ls-wide;
+  white-space: nowrap;
+  vertical-align: middle;
+  margin-left: 4px;
+
+  &.warn {
+    background: $warn-soft;
+    color: $warn;
+  }
+
+  &.crit {
+    background: $crit-soft;
+    color: $crit;
+  }
 }
 
 // ===== 文本内容 =====
