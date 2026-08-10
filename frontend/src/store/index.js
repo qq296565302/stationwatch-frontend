@@ -7,7 +7,7 @@ import {
   getCurrentDateISO,
   getCurrentTime
 } from '@/data/mockData'
-import { toMinutes, getItemTimeoutState } from '@/utils/orderTimeout'
+import { toMinutes, getTodayISO, getNowHM, getItemTimeoutState } from '@/utils/orderTimeout'
 
 const STORAGE_KEY = 'dutyguard_auth'
 
@@ -38,15 +38,43 @@ const normalizeUser = (u) => {
   }
 }
 
-// 规范化一条 record：items -> dutyItems
+// 解析遗留问题为条目数组：兼容后端数组 / JSON 串 / 旧纯文本（按行拆成未解决条目，占位 id）
+const parsePendingIssues = (v) => {
+  if (Array.isArray(v)) return v
+  if (typeof v === 'string') {
+    const t = v.trim()
+    if (!t) return []
+    if (t.startsWith('[')) {
+      try {
+        const arr = JSON.parse(t)
+        if (Array.isArray(arr)) return arr
+      } catch { /* 非法 JSON 视为纯文本 */ }
+    }
+    return t.split('\n').map((s, i) => ({
+      id: `legacy-${i}`,
+      content: s.trim(),
+      isResolved: false,
+      resolvedAt: null,
+      resolvedBy: null,
+      resolvedByName: null
+    })).filter(p => p.content)
+  }
+  return []
+}
+
+// 规范化一条 record：items -> dutyItems，遗留问题解析为数组 + 派生回填文本（仅未解决行）
 const normalizeRecord = (r) => {
   if (!r) return null
+  const pendingIssues = parsePendingIssues(r.pendingIssues)
+  const pendingText = pendingIssues.filter(p => !p.isResolved).map(p => p.content).join('\n')
   return {
     ...r,
+    pendingIssues,
+    pendingText,
     dutyItems: r.items || r.dutyItems || [],
     itemCount: r.itemCount ?? (r.items || r.dutyItems || []).filter(i => i.content).length,
     completedCount: r.completedCount ?? (r.items || r.dutyItems || []).filter(i => i.isCompleted).length,
-    hasPending: r.hasPending ?? !!r.pendingIssues?.trim(),
+    hasPending: r.hasPending ?? pendingIssues.some(p => !p.isResolved),
     creator: r.creator?.realName || r.creatorName || r.creator || '未知',
     creatorId: r.creator?.id ?? r.creatorId,
     station: r.station?.name || r.stationName || r.station || '',
@@ -294,6 +322,8 @@ export const useAppStore = defineStore('app', {
       const durations = allItems
         .filter(i => i.isCompleted && i.acceptTime && i.endTime)
         .map(i => {
+          // 当天记录且受理时间晚于当前时刻（误填未来）：真实耗时无法确定，返回 0 由下方 d>0 过滤
+          if (i._recordDate === getTodayISO() && toMinutes(i.acceptTime) > toMinutes(getNowHM())) return 0
           let d = toMinutes(i.endTime) - toMinutes(i.acceptTime)
           if (d < 0) d += 1440 // 跨天完成补 1440
           return d
@@ -363,7 +393,18 @@ export const useAppStore = defineStore('app', {
       }
       this.records = []
       this.recordsLoaded = false
+      this.alerts = []
       this.currentStationId = null
+      // 清空站点上下文，避免上一次登录的站点名/列表残留
+      this.stations = []
+      this.districts = []
+      this.systemConfig = {
+        stationName: '',
+        voltage: '10kV',
+        feeders: 8,
+        transformers: 24
+      }
+      this.systemConfigMap = {}
       clearAuth()
     },
 
@@ -407,10 +448,12 @@ export const useAppStore = defineStore('app', {
         const resp = await api.get('/stations')
         const data = resp.data || resp
         this.stations = Array.isArray(data) ? data : (data.list || [])
-        // admin 未指定当前站点时兜底到第一个启用站点
+        // admin 未指定当前站点时兜底到第一个启用站点，并同步站点名展示，保证显示与数据一致
         if (!this.currentStationId && Array.isArray(this.stations) && this.stations.length) {
           const active = this.stations.find(s => s.isActive) || this.stations[0]
           this.currentStationId = active.id
+          this.user.stationName = active.name
+          this.systemConfig.stationName = active.name
         }
       } catch (e) {
         this.stations = []
@@ -665,6 +708,16 @@ export const useAppStore = defineStore('app', {
       const record = normalizeRecord(data)
       const idx = this.records.findIndex(r => r.id === record.id)
       if (idx >= 0) this.records[idx] = record
+      return record
+    },
+
+    async resolvePendingIssue(recordId, issueId) {
+      const resp = await api.post(`/records/${recordId}/pending/${issueId}/resolve`)
+      const data = resp.data || resp
+      const record = normalizeRecord(data)
+      const idx = this.records.findIndex(r => r.id === record.id)
+      if (idx >= 0) this.records[idx] = record
+      else this.records.unshift(record)
       return record
     },
 

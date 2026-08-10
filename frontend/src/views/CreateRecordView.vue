@@ -104,7 +104,7 @@
               </div>
             </div>
 
-            <DutyItemsEditor v-model="formData.dutyItems" />
+            <DutyItemsEditor v-model="formData.dutyItems" :record-date="formData.recordDateISO" />
           </div>
         </div>
 
@@ -237,7 +237,7 @@
         </button>
         <transition name="card-collapse">
           <div v-show="!cardsCollapsed.items" class="card-body">
-            <DutyItemsEditor v-model="formData.dutyItems" />
+            <DutyItemsEditor v-model="formData.dutyItems" :record-date="formData.recordDateISO" />
           </div>
         </transition>
       </div>
@@ -344,6 +344,7 @@ import DutyItemsEditor from '@/components/DutyItemsEditor.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { getCurrentDateISO, getCurrentTime } from '@/data/mockData'
+import { toMinutes, getTodayISO, getNowHM } from '@/utils/orderTimeout'
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -468,7 +469,8 @@ onMounted(async () => {
         }))
         if (formData.dutyItems.length === 0) formData.dutyItems = [createEmptyItem()]
         formData.otherMatters = record.otherMatters || ''
-        formData.pendingIssues = record.pendingIssues || ''
+        // 只回填未解决的遗留问题；已解决条目由后端合并保留（编辑不会丢）
+        formData.pendingIssues = record.pendingText || ''
         formDirty.value = false
       } else {
         toast.error('记录不存在')
@@ -527,6 +529,16 @@ const handleSubmit = async () => {
       cancelText: '返回修改'
     })
     if (!ok) return
+  }
+
+  // 受理时间不允许晚于当前时刻（仅当天记录校验；历史记录补录不受限）
+  if (formData.recordDateISO === getTodayISO()) {
+    const nowMin = toMinutes(getNowHM())
+    const futureItem = validItems.find(i => i.acceptTime && toMinutes(i.acceptTime) > nowMin)
+    if (futureItem) {
+      toast.error(`工单「${futureItem.content}」的受理时间晚于当前时间，请修正后再保存`, '时间错误')
+      return
+    }
   }
 
   const recordData = {

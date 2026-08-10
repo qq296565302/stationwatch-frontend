@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>供电所值守云平台 · 内部培训稿件</title>
+<style>
+  /* ===== 设计变量 ===== */
+  :root {
+    --primary: #00D4FF;
+    --primary-deep: #0A2A3D;
+    --bg-0: #0B1220;
+    --bg-1: #111A2E;
+    --bg-2: #1A2540;
+    --text-0: #FFFFFF;
+    --text-1: #AAB8CC;
+    --text-2: #74839A;
+    --ok: #10B981;
+    --warn: #F59E0B;
+    --crit: #EF4444;
+    --violet: #8B5CF6;
+    --line: rgba(0, 212, 255, 0.14);
+    --glass: rgba(255, 255, 255, 0.04);
+    --radius: 16px;
+    --font: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg-0);
+    color: var(--text-0);
+    font-size: 17px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* ===== 背景光晕 ===== */
+  .bg-glow {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(720px 460px at 12% -6%, rgba(0, 212, 255, 0.14), transparent 62%),
+      radial-gradient(680px 500px at 92% 12%, rgba(139, 92, 246, 0.12), transparent 60%),
+      radial-gradient(820px 620px at 55% 118%, rgba(16, 185, 129, 0.10), transparent 62%);
+  }
+
+  /* ===== 顶部导航 ===== */
+  .nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 14px 34px;
+    background: rgba(11, 18, 32, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .5px; white-space: nowrap; }
+  .nav-brand .bolt {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary), var(--violet));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 16px;
+    box-shadow: 0 0 18px rgba(0, 212, 255, 0.45);
+  }
+  .nav-links { display: flex; gap: 4px; flex-wrap: wrap; }
+  .nav-links a {
+    color: var(--text-1);
+    text-decoration: none;
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all .18s ease;
+    white-space: nowrap;
+  }
+  .nav-links a:hover { color: var(--text-0); background: var(--glass); }
+  .nav-links a.active { color: var(--primary); background: rgba(0, 212, 255, 0.10); }
+
+  /* ===== 封面 ===== */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 120px 24px 60px;
+    position: relative;
+    background:
+      radial-gradient(900px 480px at 50% -10%, rgba(0, 212, 255, 0.20), transparent 60%),
+      radial-gradient(700px 520px at 50% 115%, rgba(139, 92, 246, 0.16), transparent 60%);
+  }
+  .hero .eyebrow {
+    font-family: var(--mono);
+    letter-spacing: 4px;
+    font-size: 14px;
+    color: var(--primary);
+    margin-bottom: 22px;
+    text-transform: uppercase;
+  }
+  .hero h1 {
+    font-size: clamp(44px, 7vw, 92px);
+    font-weight: 800;
+    line-height: 1.1;
+    background: linear-gradient(120deg, #fff 20%, var(--primary) 60%, var(--violet) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero .slogan {
+    margin-top: 18px;
+    font-size: clamp(20px, 3vw, 30px);
+    font-weight: 300;
+    color: var(--text-1);
+  }
+  .hero .meta {
+    margin-top: 34px;
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .meta-chip {
+    padding: 8px 18px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--glass);
+    font-size: 14px;
+    color: var(--text-1);
+  }
+  .hero .scroll-hint {
+    margin-top: 60px;
+    color: var(--text-2);
+    font-size: 14px;
+    letter-spacing: 2px;
+    animation: bob 2s ease-in-out infinite;
+  }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+
+  /* ===== 章节容器 ===== */
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 30px 26px 80px; }
+
+  section.block { scroll-margin-top: 84px; }
+
+  .section-head { margin-bottom: 38px; }
+  .section-kicker {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--primary);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .section-title {
+    font-size: clamp(26px, 4vw, 38px);
+    font-weight: 700;
+    margin: 8px 0 10px;
+  }
+  .section-desc { color: var(--text-1); font-size: 17px; max-width: 860px; }
+
+  /* ===== 卡片 ===== */
+  .card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 26px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(0, 212, 255, 0.4);
+    box-shadow: 0 18px 46px rgba(0, 212, 255, 0.10);
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    opacity: 0;
+    transition: opacity .22s ease;
+  }
+  .card:hover::before { opacity: 1; }
+
+  .card .card-icon {
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    margin-bottom: 16px;
+    background: rgba(0, 212, 255, 0.10);
+    color: var(--primary);
+    border: 1px solid var(--line);
+  }
+  .card h3 { font-size: 20px; font-weight: 650; margin-bottom: 10px; }
+  .card p { color: var(--text-1); font-size: 15.5px; }
+  .card ul { list-style: none; }
+  .card li { padding: 5px 0 5px 22px; position: relative; color: var(--text-1); font-size: 15px; }
+  .card li::before {
+    content: '';
+    position: absolute; left: 2px; top: 15px;
+    width: 8px; height: 8px; border-radius: 2px;
+    background: var(--primary);
+    opacity: 0.7;
+  }
+
+  .grid { display: grid; gap: 20px; }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 940px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } }
+
+  /* ===== 角色卡 ===== */
+  .role-card .role-tag {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .role-card .role-tag.r-officer { background: rgba(0,212,255,.14); color: var(--primary); }
+  .role-card .role-tag.r-super { background: rgba(245,158,11,.14); color: var(--warn); }
+  .role-card .role-tag.r-district { background: rgba(139,92,246,.16); color: var(--violet); }
+  .role-card .role-tag.r-admin { background: rgba(239,68,68,.14); color: var(--crit); }
+
+  /* ===== 权限对照表 ===== */
+  .perm-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 26px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    font-size: 15px;
+  }
+  .perm-table th, .perm-table td {
+    padding: 13px 16px;
+    text-align: center;
+    border-bottom: 1px solid var(--line);
+  }
+  .perm-table thead th {
+    background: rgba(0, 212, 255, 0.08);
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .perm-table tbody th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-0);
+    font-size: 15px;
+  }
+  .perm-table tr:last-child td, .perm-table tr:last-child th { border-bottom: none; }
+  .yes { color: var(--ok); font-weight: 700; }
+  .no { color: var(--text-2); }
+  .perm-table .row-label { text-align: left; }
+
+  /* ===== 步骤条 ===== */
+  .steps { display: flex; flex-direction: column; gap: 18px; margin-top: 26px; }
+  .step {
+    display: flex;
+    gap: 18px;
+    padding: 22px 24px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all .22s ease;
+  }
+  .step:hover { border-color: rgba(0, 212, 255, 0.4); }
+  .step-num {
+    flex-shrink: 0;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 18px;
+    background: rgba(0, 212, 255, 0.12);
+    color: var(--primary);
+    border: 1px solid var(--line);
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 18px; font-weight: 650; margin-bottom: 4px; display: flex; align-items: center; gap: 10px; }
+  .step-sub { color: var(--text-2); font-size: 14px; margin-bottom: 12px; }
+  .step-detail {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height .32s ease, opacity .28s ease, margin .28s ease;
+  }
+  .step.open .step-detail { max-height: 600px; opacity: 1; margin-top: 14px; }
+  @media (max-width: 760px) { .step-detail { grid-template-columns: 1fr; } }
+  .detail-item {
+    padding: 12px 14px;
+    background: rgba(0,0,0,0.18);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    font-size: 14.5px;
+    color: var(--text-1);
+  }
+  .detail-item b { color: var(--text-0); display: block; margin-bottom: 3px; font-size: 15px; }
+  .step-arrow { color: var(--text-2); align-self: center; transition: transform .25s ease; }
+  .step.open .step-arrow { transform: rotate(180deg); }
+
+  /* ===== 功能清单小卡片 ===== */
+  .feature-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid var(--line);
+    font-size: 14px;
+    color: var(--text-0);
+  }
+  .feature-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+  .chip-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+
+  /* ===== 提示框 ===== */
+  .tip {
+    display: flex;
+    gap: 14px;
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-top: 22px;
+    border: 1px solid;
+    font-size: 15px;
+  }
+  .tip .t-icon { font-size: 20px; line-height: 1.3; }
+  .tip.info { background: rgba(0,212,255,0.08); border-color: rgba(0,212,255,0.3); color: var(--text-1); }
+  .tip.warn { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); color: var(--text-1); }
+
+  /* ===== 登录指引 ===== */
+  .acct {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .acct-card {
+    padding: 20px;
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border: 1px solid var(--line);
+  }
+  .acct-card h4 { font-size: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .acct-card .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14.5px; }
+  .acct-card .row span:first-child { color: var(--text-2); }
+
+  /* ===== 结语 ===== */
+  .outro {
+    text-align: center;
+    padding: 70px 24px;
+    background:
+      radial-gradient(700px 360px at 50% 0%, rgba(0,212,255,0.14), transparent 60%);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    margin-top: 40px;
+  }
+  .outro h2 { font-size: clamp(26px,4vw,40px); font-weight: 800; }
+  .outro p { color: var(--text-1); margin-top: 16px; font-size: 17px; max-width: 680px; margin-left: auto; margin-right: auto; }
+  .outro .endline {
+    margin-top: 26px;
+    font-family: var(--mono);
+    color: var(--primary);
+    letter-spacing: 2px;
+  }
+
+  /* ===== 页脚 ===== */
+  footer {
+    padding: 26px 24px;
+    text-align: center;
+    color: var(--text-2);
+    font-size: 13.5px;
+    border-top: 1px solid var(--line);
+  }
+
+  /* ===== 章节渐入 ===== */
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  /* ===== 通用 ===== */
+  .lead { color: var(--text-1); font-size: 17px; }
+  .mt { margin-top: 18px; }
+  .mtl { margin-top: 30px; }
+  .center { text-align: center; }
+  .accent { color: var(--primary); }
+  .ok { color: var(--ok); }
+  .warn { color: var(--warn); }
+  .crit { color: var(--crit); }
+
+  /* ===== 指标卡 ===== */
+  .stat-num { font-size: 40px; font-weight: 800; line-height: 1; color: var(--primary); }
+  .stat-label { color: var(--text-2); font-size: 14px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<!-- ===== 顶部导航 ===== -->
+<nav class="nav" id="topnav">
+  <div class="nav-brand"><span class="bolt">⚡</span> 供电所值守云平台</div>
+  <div class="nav-links">
+    <a href="#intro">项目简介</a>
+    <a href="#arch">架构</a>
+    <a href="#login">登录</a>
+    <a href="#roles">角色权限</a>
+    <a href="#modules">功能模块</a>
+    <a href="#flow">操作流程</a>
+    <a href="#faq">常见问题</a>
+  </div>
+</nav>
+
+<!-- ===== 封面 ===== -->
+<header class="hero">
+  <div class="eyebrow">DutyGuard · 让值班更高效</div>
+  <h1>供电所值守云平台</h1>
+  <div class="slogan">供电所值班记录的数字化、流程化、智能化管理平台</div>
+  <div class="meta">
+    <span class="meta-chip">内部培训稿件</span>
+    <span class="meta-chip">2026</span>
+    <span class="meta-chip">v1.0.0</span>
+  </div>
+  <div class="scroll-hint">▼ 向下滚动查看培训内容</div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== 01 项目简介 ===== -->
+  <section class="block" id="intro">
+    <div class="section-head reveal">
+      <div class="section-kicker">01 · 项目简介</div>
+      <h2 class="section-title">为什么建设这个平台？</h2>
+      <p class="section-desc">
+        供电所值守云平台将传统的纸质值班记录、手工台账，升级为「在线记录 + 工单化管理 + 自动统计 + 一键导出」的数字化平台，
+        让每一次值班、每一张工单、每一条遗留问题都清晰留痕、可追溯、可分析。
+      </p>
+    </div>
+
+    <div class="grid g3">
+      <div class="card reveal">
+        <div class="card-icon">📝</div>
+        <h3>值班记录数字化</h3>
+        <p>值班日期、天气、值班班组、值班事项在线填报，替代纸质值班表，数据实时入库，随查随用。</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">⚙️</div>
+        <h3>工单流程化管理</h3>
+        <p>每条报修/业务事项作为独立工单，记录受理内容、客户、联系方式、办理人员与处理结果，支持标记完成、超时提醒。</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">📊</div>
+        <h3>数据统计分析</h3>
+        <p>主控台自动汇总接单量、完成率、响应时长、业务分布、接单时段热力图、重复工单等，为管理决策提供依据。</p>
+      </div>
+    </div>
+    <div class="grid g3 mt">
+      <div class="card reveal">
+        <div class="card-icon">🗂️</div>
+        <h3>遗留问题闭环</h3>
+        <p>遗留问题逐条登记、确认解决、下个班次优先展示，确保「问题不过夜、班班有交接」。</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">📤</div>
+        <h3>Excel 一键导出</h3>
+        <p>按月 / 按区间批量导出值班记录为 Excel，保持原始电子值班表模板格式，报表制作不再手工誊抄。</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">🔐</div>
+        <h3>分级权限管控</h3>
+        <p>值班员、所长、区县管理员、管理员四类角色，职责清晰，操作留痕，数据安全可控。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 02 技术架构 ===== -->
+  <section class="block" id="arch">
+    <div class="section-head reveal">
+      <div class="section-kicker">02 · 技术架构</div>
+      <h2 class="section-title">平台由什么构成？</h2>
+      <p class="section-desc">平台采用「前后端分离」架构，前端负责界面交互，后端提供业务接口与数据服务，登录鉴权全程加密。</p>
+    </div>
+    <div class="grid g2">
+      <div class="card reveal">
+        <div class="card-icon">🖥️</div>
+        <h3>前端 · 供电所值守云平台前端</h3>
+        <ul>
+          <li>Vue 3 + Pinia 状态管理 + Vue Router 路由</li>
+          <li>深色科技风界面，适配各类屏幕与投屏演示</li>
+          <li>页面模块：主控台 / 值班记录 / 导出管理 / 系统配置</li>
+          <li>浏览器直接访问，无需安装客户端</li>
+        </ul>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">⚙️</div>
+        <h3>后端 · 供电所值守云平台后端</h3>
+        <ul>
+          <li>Nest.js 10 + TypeScript 5 构建</li>
+          <li>JWT 双令牌鉴权（AccessToken 2 小时 / RefreshToken 7 天）</li>
+          <li>提供值班记录、工单、字典、仪表板、导出、排班等 REST 接口</li>
+          <li>Swagger 在线接口文档，便于联调与调试</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 03 登录 ===== -->
+  <section class="block" id="login">
+    <div class="section-head reveal">
+      <div class="section-kicker">03 · 登录指引</div>
+      <h2 class="section-title">如何进入系统？</h2>
+      <p class="section-desc">在浏览器中打开平台地址，使用分配的用户名和密码登录。登录页支持「记住我」，保持登录状态更便捷。</p>
+    </div>
+
+    <div class="acct">
+      <div class="acct-card reveal">
+        <h4>🔑 登录步骤</h4>
+        <div class="row"><span>① 打开系统地址</span><span>浏览器访问</span></div>
+        <div class="row"><span>② 输入分配的用户名</span><span>由管理员分配</span></div>
+        <div class="row"><span>③ 输入密码</span><span>首次登录后建议修改</span></div>
+        <div class="row"><span>④ 点击登录</span><span class="ok">进入主控台</span></div>
+        <div class="tip info mt">
+          <span class="t-icon">💡</span>
+          <div>忘记密码时请勿在页面操作，直接联系系统管理员重置密码即可；勾选「记住我」可保持登录状态。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 04 角色权限 ===== -->
+  <section class="block" id="roles">
+    <div class="section-head reveal">
+      <div class="section-kicker">04 · 角色权限</div>
+      <h2 class="section-title">四种角色，各司其职</h2>
+      <p class="section-desc">系统按岗位职责划分四种角色，权限边界清晰：值班员聚焦日常记录，所长负责审核锁定与导出，区县管理员管理本区县站点账号，管理员拥有全部管理权限。</p>
+    </div>
+
+    <div class="grid g4">
+      <div class="card role-card reveal">
+        <span class="role-tag r-officer">值班员</span>
+        <h3>日常记录主力</h3>
+        <ul>
+          <li>查看本所值班记录</li>
+          <li>创建 / 编辑自己的记录</li>
+          <li>填写工单、标记完成</li>
+          <li>跟进遗留问题</li>
+        </ul>
+      </div>
+      <div class="card role-card reveal">
+        <span class="role-tag r-super">所长</span>
+        <h3>记录审核把关</h3>
+        <ul>
+          <li>查看 / 编辑全所记录</li>
+          <li>锁定已完成的记录</li>
+          <li>Excel 导出</li>
+          <li>配置本所值班规则</li>
+        </ul>
+      </div>
+      <div class="card role-card reveal">
+        <span class="role-tag r-district">区县管理员</span>
+        <h3>区县组织管理</h3>
+        <ul>
+          <li>管理本区县供电所站点</li>
+          <li>管理值班员账号</li>
+          <li>Excel 导出</li>
+          <li>不参与值班记录编辑</li>
+        </ul>
+      </div>
+      <div class="card role-card reveal">
+        <span class="role-tag r-admin">管理员</span>
+        <h3>全局系统管理</h3>
+        <ul>
+          <li>用户 / 站点 / 系统配置</li>
+          <li>删除、解锁记录</li>
+          <li>操作日志审计</li>
+          <li>全部模块权限</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="reveal mtl">
+      <h3 class="accent" style="font-size:20px; margin-bottom:4px;">权限对照一览</h3>
+      <table class="perm-table">
+        <thead>
+          <tr>
+            <th>功能</th><th>值班员</th><th>所长</th><th>区县管理员</th><th>管理员</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th class="row-label">查看本所记录</th><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><th class="row-label">创建值班记录</th><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
+          <tr><th class="row-label">编辑本人记录</th><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
+          <tr><th class="row-label">编辑他人记录</th><td class="no">✗</td><td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
+          <tr><th class="row-label">标记工单完成</th><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
+          <tr><th class="row-label">锁定 / 解锁记录</th><td class="no">✗</td><td class="warn">锁定</td><td class="no">—</td><td class="yes">✓</td></tr>
+          <tr><th class="row-label">删除记录</th><td class="no">✗</td><td class="no">✗</td><td class="no">—</td><td class="yes">✓</td></tr>
+          <tr><th class="row-label">Excel 导出</th><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><th class="row-label">用户 / 站点管理</th><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><th class="row-label">系统配置 / 操作日志</th><td class="no">✗</td><td class="no">✗</td><td class="no">—</td><td class="yes">✓</td></tr>
+        </tbody>
+      </table>
+      <div class="tip warn mt">
+        <span class="t-icon">⚠️</span>
+        <div><b>演示要点：</b>值班员只能编辑「自己创建」的记录；所长可编辑全所记录并「锁定」；记录一旦锁定仅管理员可编辑。演示时可切换不同角色登录，对比界面可操作按钮的差异。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 05 功能模块 ===== -->
+  <section class="block" id="modules">
+    <div class="section-head reveal">
+      <div class="section-kicker">05 · 功能模块</div>
+      <h2 class="section-title">四大功能模块总览</h2>
+      <p class="section-desc">登录后默认进入「主控台」，通过左侧/顶部导航可切换到值班记录、导出管理、系统配置等模块。</p>
+    </div>
+
+    <!-- 主控台 -->
+    <div class="card reveal mtl">
+      <div class="card-icon">📊</div>
+      <h3>主控台 · Dashboard</h3>
+      <p>值班工作的一站式驾驶舱，进入系统第一眼即可掌握全所值班全貌。</p>
+      <div class="chip-row">
+        <span class="feature-chip"><i></i>关键统计：接单 / 完成 / 完成率 / 超时</span>
+        <span class="feature-chip"><i></i>今日值班进度</span>
+        <span class="feature-chip"><i></i>最近活动</span>
+        <span class="feature-chip"><i></i>接单趋势（折线 / 柱状）</span>
+        <span class="feature-chip"><i></i>业务类型分布</span>
+        <span class="feature-chip"><i></i>响应时长分析</span>
+        <span class="feature-chip"><i></i>接单时段热力图</span>
+        <span class="feature-chip"><i></i>重复工单提醒</span>
+        <span class="feature-chip"><i></i>值班排班</span>
+      </div>
+    </div>
+
+    <!-- 值班记录 -->
+    <div class="card reveal mtl">
+      <div class="card-icon">📋</div>
+      <h3>值班记录 · Records</h3>
+      <p>值班记录的全生命周期管理，从新建到查看、编辑、锁定、导出。</p>
+      <div class="chip-row">
+        <span class="feature-chip"><i></i>列表支持表格 / 卡片双视图</span>
+        <span class="feature-chip"><i></i>按日期 / 状态 / 关键字筛选</span>
+        <span class="feature-chip"><i></i>新建三步流程</span>
+        <span class="feature-chip"><i></i>详情时间线展示</span>
+        <span class="feature-chip"><i></i>遗留问题逐条解决</span>
+        <span class="feature-chip"><i></i>操作日志留痕</span>
+        <span class="feature-chip"><i></i>补录前一天记录</span>
+      </div>
+    </div>
+
+    <!-- 导出管理 -->
+    <div class="card reveal mtl">
+      <div class="card-icon">📤</div>
+      <h3>导出管理 · Export</h3>
+      <p>按月或按区间批量导出值班记录为 Excel，保持电子值班表原始模板格式。</p>
+      <div class="chip-row">
+        <span class="feature-chip"><i></i>月度导出</span>
+        <span class="feature-chip"><i></i>区间导出</span>
+        <span class="feature-chip"><i></i>原始 Excel 模板</span>
+        <span class="feature-chip"><i></i>合并到单个工作表</span>
+        <span class="feature-chip"><i></i>导出历史可追溯下载</span>
+        <span class="feature-chip"><i></i>模板预览</span>
+      </div>
+    </div>
+
+    <!-- 系统配置 -->
+    <div class="card reveal mtl">
+      <div class="card-icon">⚙️</div>
+      <h3>系统配置 · System</h3>
+      <p>面向所长 / 管理员的运维配置中心，统一管理站点、账号、排班与业务规则。</p>
+      <div class="chip-row">
+        <span class="feature-chip"><i></i>站点信息管理</span>
+        <span class="feature-chip"><i></i>值班员账号管理</span>
+        <span class="feature-chip"><i></i>值班排班配置</span>
+        <span class="feature-chip"><i></i>值班规则（事项上限 / 工单时限）</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 06 核心操作流程 ===== -->
+  <section class="block" id="flow">
+    <div class="section-head reveal">
+      <div class="section-kicker">06 · 核心操作流程</div>
+      <h2 class="section-title">一步一步，照做就会</h2>
+      <p class="section-desc">以下按真实操作路径拆解五大核心流程。点击每个流程节点可展开详细操作说明，便于现场对照演示。</p>
+    </div>
+
+    <!-- 流程一：新建值班记录 -->
+    <div class="reveal mtl">
+      <h3 class="accent" style="font-size:22px; margin-bottom:6px;">流程一 · 新建值班记录（三步）</h3>
+      <p class="lead">值班员登录后，点击「新建值班记录」，依次完成基本信息 → 值班事项 → 其他事项三个步骤，最后提交。</p>
+      <div class="steps">
+        <div class="step open">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">填写基本信息 <span class="step-sub">值班日期 · 天气 · 值班班组 · 所属站点</span></div>
+            <div class="step-detail">
+              <div class="detail-item"><b>值班日期</b>可选「今天」或「昨天」，支持补录前一天记录。</div>
+              <div class="detail-item"><b>天气情况</b>通过图标点选（晴天 / 多云 / 雨天 / 雷雨 / 雪天 / 雾天）。</div>
+              <div class="detail-item"><b>值班人员</b>按当天排班自动带出班组，无需手工填写。</div>
+              <div class="detail-item"><b>所属站点</b>系统自动填充，只读。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">录入值班事项 <span class="step-sub">逐条添加工单，最多 11 条</span></div>
+            <div class="step-detail">
+              <div class="detail-item"><b>受理时间</b>默认当前时刻，可调整。</div>
+              <div class="detail-item"><b>业务类型 / 受理内容</b>下拉可选项，也可直接输入新内容。</div>
+              <div class="detail-item"><b>客户名称 / 联系电话 / 联系地址</b>必填项，手机号需 11 位。</div>
+              <div class="detail-item"><b>办理人员 / 处理结果</b>记录处理责任人；填写处理结果后可标记完成。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">填写其他事项与遗留问题 <span class="step-sub">提交记录</span></div>
+            <div class="step-detail">
+              <div class="detail-item"><b>其他事项</b>记录非例行事项，如会议、培训、设备异动等。</div>
+              <div class="detail-item"><b>遗留问题</b>登记待跟进事项，将在下个班次优先展示。</div>
+              <div class="detail-item"><b>提交</b>系统按「同站点同一天」智能合并，同一天重复提交会合并工单而非重复创建。</div>
+              <div class="detail-item"><b>注意事项</b>受理时间不得晚于当前时刻；未填必填项的工单会给出确认提示。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 流程二：工单处理 -->
+    <div class="reveal mtl">
+      <h3 class="accent" style="font-size:22px; margin-bottom:6px;">流程二 · 工单处理与标记完成</h3>
+      <p class="lead">进入记录详情，时间线展示每条工单的受理 → 完成过程；填写处理结果后即可标记完成，系统自动记录完成时间。</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">进入记录详情</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>入口</b>在值班记录列表点击某条记录。</div>
+              <div class="detail-item"><b>查看</b>顶部展示日期、天气、值班员、状态与完成度环形进度。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">点击工单查看 / 填写处理结果</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>抽屉弹窗</b>点击任意工单弹出完整信息（业务类型、客户、联系方式、地址、办理人员）。</div>
+              <div class="detail-item"><b>处理结果</b>从下拉选择或直接输入。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">标记完成</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>操作</b>点击「标记完成」，系统强制记录当前时间为完成时间。</div>
+              <div class="detail-item"><b>超时提醒</b>未完成工单临近时限变黄、超时变红，自动提示。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 流程三：记录锁定 -->
+    <div class="reveal mtl">
+      <h3 class="accent" style="font-size:22px; margin-bottom:6px;">流程三 · 锁定值班记录</h3>
+      <p class="lead">当某天记录全部工单已完成，由所长（或管理员）执行锁定，锁定后记录不可再修改，确保数据正式归档。</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">确认记录已全部完成</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>前置条件</b>该记录完成数 = 事项总数（进度 100%）。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">点击「锁定记录」</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>权限</b>仅所长与管理员可见锁定按钮。</div>
+              <div class="detail-item"><b>确认</b>弹出确认框，确认后即锁定。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">锁定生效</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>状态</b>记录变为「已锁定」，编辑按钮对值班员隐藏。</div>
+              <div class="detail-item"><b>解锁</b>仅管理员可解锁已锁定记录。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 流程四：Excel 导出 -->
+    <div class="reveal mtl">
+      <h3 class="accent" style="font-size:22px; margin-bottom:6px;">流程四 · 导出值班记录 Excel</h3>
+      <p class="lead">所长 / 区县管理员 / 管理员可在「导出管理」按需生成 Excel 报表。</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">选择导出类型</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>月度导出</b>选择具体月份，一次导出整月记录。</div>
+              <div class="detail-item"><b>区间导出</b>自定义起止日期范围。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">配置导出选项</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>内容勾选</b>是否包含「其他事项」「遗留问题」。</div>
+              <div class="detail-item"><b>格式</b>是否使用原始 Excel 模板、是否合并到单个工作表。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">开始导出并下载</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>预览</b>右侧展示预计导出条数、文件名与大小。</div>
+              <div class="detail-item"><b>下载</b>点击「开始导出」，浏览器自动下载 xlsx 文件。</div>
+              <div class="detail-item"><b>历史</b>导出记录保存在「导出历史」，可随时重新下载。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 流程五：系统配置 -->
+    <div class="reveal mtl">
+      <h3 class="accent" style="font-size:22px; margin-bottom:6px;">流程五 · 系统配置管理（所长 / 管理员）</h3>
+      <p class="lead">在「系统配置」中管理站点、账号、排班与业务规则，让平台贴合本所实际。</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-title">站点信息与值班员管理</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>站点信息</b>维护供电所名称、所属区县。</div>
+              <div class="detail-item"><b>值班员管理</b>添加值班员、编辑资料、分配角色、重置密码。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-title">配置值班排班</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>规则</b>固定轮值、每组一天、周期循环。</div>
+              <div class="detail-item"><b>设置</b>起始日期、轮换周期、班组数量与成员。</div>
+              <div class="detail-item"><b>联动</b>排班配置后，新建记录会自动带出当天值班班组，主控台展示排班表。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-title">设置值班规则并保存</div>
+            <div class="step-detail">
+              <div class="detail-item"><b>每班最大事项数</b>默认 11 条。</div>
+              <div class="detail-item"><b>工单时限</b>默认 45 分钟，未完成超时自动提醒。</div>
+              <div class="detail-item"><b>历史修改 / 自动开始时间 / 遗留提醒</b>等开关由管理员控制。</div>
+              <div class="detail-item"><b>保存</b>点击「保存值班规则」即时生效。</div>
+            </div>
+          </div>
+          <div class="step-arrow">▼</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 07 常见问题 ===== -->
+  <section class="block" id="faq">
+    <div class="section-head reveal">
+      <div class="section-kicker">07 · 常见问题与使用贴士</div>
+      <h2 class="section-title">使用中常见问题</h2>
+      <p class="section-desc">这些高频问题在培训演示时务必讲透，帮助值班员快速上手。</p>
+    </div>
+
+    <div class="grid g2">
+      <div class="card reveal">
+        <div class="card-icon">⏱️</div>
+        <h3>工单为什么会「超时」？</h3>
+        <p>系统按「工单时限」（默认 45 分钟）判定：未完成工单超过时限标红「已超时」，临近时限变黄提醒。可通过系统配置调整时限。</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">🔁</div>
+        <h3>怎么补录昨天的记录？</h3>
+        <p>新建记录时，值班日期可选择「昨天」进行补录。历史记录是否可改，由管理员在「历史记录修改限制」中控制。</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">📌</div>
+        <h3>遗留问题如何跟进？</h3>
+        <p>遗留问题逐条登记，下个班次优先展示；处理完成后由有权限的值班员/所长「确认解决」，系统记录解决人与时间。</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">🔐</div>
+        <h3>为什么不能编辑别人的记录？</h3>
+        <p>值班员仅可编辑自己创建的值班记录；编辑他人记录需要所长或管理员权限，锁定记录仅管理员可编辑。</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">📤</div>
+        <h3>导出后文件在哪？</h3>
+        <p>导出完成后浏览器自动下载 xlsx 文件；同时可在「导出历史」中重新下载任意历史导出文件。</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">🔄</div>
+        <h3>同一天重复建记录会怎样？</h3>
+        <p>不会重复创建。系统按「同站点同一天」智能合并：已有工单带 id 则更新、无 id 则追加，其他事项与遗留问题按行追加合并。</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">🗝️</div>
+        <h3>忘记密码怎么办？</h3>
+        <p>页面不支持自助找回，请联系系统管理员重置密码。登录页的「忘记密码？」即提示此操作路径。</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">📊</div>
+        <h3>如何快速定位某天记录？</h3>
+        <p>在值班记录列表使用搜索框（值班员 / 事项内容）、状态筛选、日期区间筛选，即可快速定位；支持表格 / 卡片两种视图切换。</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ===== 结语 ===== -->
+<section class="outro">
+  <h2>让值班更高效，让数据会说话</h2>
+  <p>供电所值守云平台致力于将供电所值班管理从「纸质台账」全面升级为「数字化、流程化、智能化」。掌握以上功能与流程，即可熟练开展日常值守工作。</p>
+  <div class="endline">DutyGuard · 供电所值守云平台 · 内部培训</div>
+</section>
+
+<footer>
+  供电所值守云平台 · v1.0.0 · © 2026 供电所值守云平台 · 内部培训稿件（仅限内部培训使用）
+</footer>
+
+<script>
+  // ===== 顶部导航滚动高亮 =====
+  const navLinks = document.querySelectorAll('.nav-links a');
+  const sections = [...navLinks].map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+
+  const setActive = (id) => {
+    navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+  };
+
+  const onScroll = () => {
+    const pos = window.scrollY + 120;
+    let current = null;
+    sections.forEach(sec => { if (sec.offsetTop <= pos) current = sec.id; });
+    if (current) setActive(current);
+    // 章节渐入
+    document.querySelectorAll('.reveal').forEach(el => {
+      if (el.getBoundingClientRect().top < window.innerHeight - 40) el.classList.add('visible');
+    });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // ===== 流程步骤条展开/收起 =====
+  document.querySelectorAll('.step').forEach(step => {
+    step.addEventListener('click', () => {
+      const parent = step.parentElement;
+      // 同组内同时只展开一个
+      parent.querySelectorAll('.step').forEach(s => s !== step && s.classList.remove('open'));
+      step.classList.toggle('open');
+    });
+  });
+
+  // ===== 平滑滚动 =====
+  navLinks.forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+</body>
+</html>

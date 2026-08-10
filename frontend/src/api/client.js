@@ -38,7 +38,9 @@ api.interceptors.response.use(
 
     // 401：尝试 refresh 一次；refresh 不可用或失败则清认证并跳登录页
     if (status === 401) {
-      if (auth.refreshToken && !original._retried) {
+      const isLoginReq = /\/auth\/login$/.test(original.url || '')
+      // 登录请求不做 refresh（此时尚无 refreshToken），直接抛后端提示（如「账号或密码错误」）
+      if (!isLoginReq && auth.refreshToken && !original._retried) {
         original._retried = true
         try {
           if (!refreshing) {
@@ -62,7 +64,10 @@ api.interceptors.response.use(
       if (!window.location.hash.includes('#/login')) {
         window.location.hash = '#/login'
       }
-      return Promise.reject(error)
+      // 优先抛后端返回的中文提示（如「账号或密码错误」），避免裸 401 描述
+      const err = new Error(error.response?.data?.message || error.message || '登录状态已失效，请重新登录')
+      err.code = error.response?.data?.code
+      return Promise.reject(err)
     }
 
     // 业务错误：抛 message

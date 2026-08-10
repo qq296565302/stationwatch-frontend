@@ -212,17 +212,48 @@
         </div>
       </div>
 
-      <!-- 遗留问题 -->
-      <div v-if="record.pendingIssues" class="section-panel pending-section">
+      <!-- 遗留问题（逐条确认解决） -->
+      <div v-if="record.pendingIssues && record.pendingIssues.length" class="section-panel pending-section">
         <div class="section-header">
           <div class="section-title">
             <i class="led led-warn"></i>
             <span>遗留问题</span>
-            <span class="tag tag-warn">需跟进</span>
+            <span v-if="hasUnresolved" class="tag tag-warn">需跟进</span>
+            <span v-else class="tag tag-ok">已全部解决</span>
           </div>
         </div>
         <div class="section-body">
-          <pre class="text-content pending-content">{{ record.pendingIssues }}</pre>
+          <div class="pending-list">
+            <div
+              v-for="(p, idx) in record.pendingIssues"
+              :key="p.id"
+              class="pending-item"
+              :class="{ resolved: p.isResolved }"
+            >
+              <span class="pending-mark" :class="{ done: p.isResolved }">
+                <svg v-if="p.isResolved" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span v-else class="font-mono">{{ String(idx + 1).padStart(2, '0') }}</span>
+              </span>
+              <div class="pending-content">
+                <div class="pending-text">{{ p.content }}</div>
+                <div v-if="p.isResolved" class="pending-resolved-meta">
+                  已由 <strong>{{ p.resolvedByName || '—' }}</strong> 确认解决 · {{ formatDateTime(p.resolvedAt) }}
+                </div>
+              </div>
+              <button
+                v-if="!p.isResolved && store.canEditRecordFor(record)"
+                class="btn btn-mini btn-mini-success"
+                @click="handleResolvePending(p)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                确认解决
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -505,6 +536,28 @@ const handleLock = async () => {
     toast.success('记录已锁定')
   } catch (e) {
     toast.error(e.message || '锁定失败')
+  }
+}
+
+// 是否存在未解决的遗留问题（区块 tag 切换：需跟进 / 已全部解决）
+const hasUnresolved = computed(() => {
+  const list = record.value?.pendingIssues || []
+  return list.some(p => !p.isResolved)
+})
+
+const handleResolvePending = async (p) => {
+  const ok = await confirm.open({
+    title: '确认解决',
+    message: `确认该遗留问题已解决？\n${p.content}`,
+    confirmText: '确认解决',
+    type: 'success'
+  })
+  if (!ok) return
+  try {
+    await store.resolvePendingIssue(record.value.id, p.id)
+    toast.success('遗留问题已确认解决')
+  } catch (e) {
+    toast.error(e.message || '操作失败')
   }
 }
 
@@ -1041,8 +1094,71 @@ watch(() => route.params.id, (id) => { if (id) loadDetail() })
   background: linear-gradient(135deg, $bg-base 0%, rgba(255, 184, 0, 0.03) 100%);
 }
 
+.pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+}
+
+.pending-item {
+  display: flex;
+  align-items: flex-start;
+  gap: $space-3;
+  padding: $space-3;
+  background: $bg-elevated;
+  border: 1px solid $border-subtle;
+  border-radius: $radius-base;
+
+  &.resolved {
+    opacity: 0.75;
+    background: $bg-base;
+  }
+}
+
+.pending-mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: $warn-soft;
+  border: 2px solid $warn-border;
+  color: $warn;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: $fw-bold;
+  flex-shrink: 0;
+  line-height: 0;
+
+  svg { width: 12px; height: 12px; display: block; }
+  span { line-height: 1; }
+
+  &.done {
+    background: $ok-soft;
+    border-color: $ok;
+    color: $ok;
+  }
+}
+
 .pending-content {
-  font-family: $font-body;
+  flex: 1;
+  min-width: 0;
+}
+
+.pending-text {
+  font-size: $fs-base;
+  color: $text-primary;
+  line-height: $lh-base;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.pending-resolved-meta {
+  margin-top: $space-1;
+  font-size: $fs-xs;
+  color: $text-muted;
+
+  strong { color: $ok; font-weight: $fw-semibold; }
 }
 
 // ===== 日志 =====

@@ -41,15 +41,34 @@ export function getItemTimeoutState(item, recordDate, limitMinutes) {
   if (!item || !item.content) return null
   const limit = Number(limitMinutes) || 45
 
+  // 受理时间晚于当前时刻（当天记录误填未来时间）：视为尚未到期，绝不判超时
+  // 注：真正的跨天（昨晚 23:50 受理、现在 00:10）记录日期是昨天，会走下方完整时间戳分支；
+  //     当天分支里受理时间 > 当前时刻只可能是未来误填，不能当「跨天」补 1440
+  if (item.acceptTime && recordDate === getTodayISO()) {
+    const futureMin = toMinutes(item.acceptTime) - toMinutes(getNowHM())
+    if (futureMin > 0) {
+      if (!item.isCompleted) {
+        // 未完成：到期时间 = 受理后 limit 分钟，距现在还有 limit + futureMin
+        const remainingMin = Math.round(limit + futureMin)
+        return {
+          state: remainingMin < 10 ? 'warning' : 'ok',
+          remainingMin,
+          label: `剩余 ${remainingMin} 分钟`
+        }
+      }
+      // 已完成：处理耗时无法确定（受理时间在未来），不判超时
+      return null
+    }
+  }
+
   if (!item.isCompleted) {
     // 未完成：无受理时间无法判定（列表不标、提醒跳过、统计不计）
     if (!item.acceptTime) return null
 
     let elapsed
     if (recordDate === getTodayISO()) {
-      // 当天：直接 HH:MM 差值，跨天（受理 23:50、现在 00:10）补 1440
+      // 当天：直接 HH:MM 差值（受理时间已确保不晚于当前时刻，无需跨天补 1440）
       elapsed = toMinutes(getNowHM()) - toMinutes(item.acceptTime)
-      if (elapsed < 0) elapsed += 1440
     } else {
       // 历史记录：必须用完整时间戳，否则历史未完成工单会被误判为"剩余 X 分钟"
       const start = new Date(`${recordDate}T${item.acceptTime}:00`).getTime()

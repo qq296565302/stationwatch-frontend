@@ -209,8 +209,8 @@
         </div>
       </div>
 
-      <!-- 值班规则 -->
-      <div class="config-section">
+      <!-- 值班规则：仅站点可管理角色（超级管理员/区县管理员）可见，所长无查看与修改权限 -->
+      <div v-if="store.canManageStation" class="config-section">
         <div class="section-header">
           <div class="section-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -223,7 +223,8 @@
             <p class="section-desc">配置值班记录的相关业务规则</p>
           </div>
           <div class="section-action">
-            <button v-if="store.user.role !== 'district_admin'" class="btn btn-primary btn-sm" :disabled="savingRules" @click="saveRules">
+            <!-- 值班规则含站点级配置（每班最大事项数/工单时限），由可管理站点的角色（admin/区县管理员）保存，所长无此权限 -->
+            <button class="btn btn-primary btn-sm" :disabled="savingRules" @click="saveRules">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                 <polyline points="17 21 17 13 7 13 7 21"/>
@@ -292,6 +293,16 @@
                   <span class="switch-slider"></span>
                 </label>
                 <span class="rule-value">{{ rulesForm.pendingNotify ? '已启用' : '已禁用' }}</span>
+              </div>
+            </div>
+            <div v-if="store.isAdmin" class="rule-row">
+              <div class="rule-info">
+                <div class="rule-label">提醒间隔</div>
+                <div class="rule-desc">存在遗留问题时，每隔多少分钟提醒一次（5-1440，默认 30）</div>
+              </div>
+              <div class="rule-control">
+                <input v-model.number="rulesForm.pendingNotifyInterval" type="number" class="rule-input font-mono" min="5" max="1440" />
+                <span class="rule-unit">分钟</span>
               </div>
             </div>
           </div>
@@ -470,7 +481,8 @@ const rulesForm = reactive({
   orderTimeLimit: 45,
   allowEditHistory: false,
   autoStartTime: true,
-  pendingNotify: true
+  pendingNotify: true,
+  pendingNotifyInterval: 30
 })
 const savingRules = ref(false)
 
@@ -483,6 +495,7 @@ const loadRulesForm = () => {
   rulesForm.allowEditHistory = map['duty.allow_edit_history'] === true
   rulesForm.autoStartTime = map['duty.auto_start_time'] !== false
   rulesForm.pendingNotify = map['duty.pending_notify'] !== false
+  rulesForm.pendingNotifyInterval = Math.max(5, Math.min(1440, Number(map['duty.pending_notify_interval']) || 30))
 }
 
 const saveRules = async () => {
@@ -490,8 +503,10 @@ const saveRules = async () => {
   try {
     const max = Math.max(1, Math.min(20, Number(rulesForm.maxItemsPerRecord) || 11))
     const limit = Math.max(5, Math.min(1440, Number(rulesForm.orderTimeLimit) || 45))
+    const interval = Math.max(5, Math.min(1440, Number(rulesForm.pendingNotifyInterval) || 30))
     rulesForm.maxItemsPerRecord = max
     rulesForm.orderTimeLimit = limit
+    rulesForm.pendingNotifyInterval = interval
     if (!store.isAdmin) {
       // 所长：仅保存本所站点级规则（每班最大事项数 / 工单时限），全局开关不开放
       if (!stationForm.id) throw new Error('未找到站点信息')
@@ -502,7 +517,8 @@ const saveRules = async () => {
           'duty.max_items_per_record': max,
           'duty.allow_edit_history': !!rulesForm.allowEditHistory,
           'duty.auto_start_time': !!rulesForm.autoStartTime,
-          'duty.pending_notify': !!rulesForm.pendingNotify
+          'duty.pending_notify': !!rulesForm.pendingNotify,
+          'duty.pending_notify_interval': interval
         })
       ]
       // 同步站点字段（后端工单上限/工单时限实际读取站点配置）
@@ -514,7 +530,8 @@ const saveRules = async () => {
         'duty.max_items_per_record': max,
         'duty.allow_edit_history': !!rulesForm.allowEditHistory,
         'duty.auto_start_time': !!rulesForm.autoStartTime,
-        'duty.pending_notify': !!rulesForm.pendingNotify
+        'duty.pending_notify': !!rulesForm.pendingNotify,
+        'duty.pending_notify_interval': interval
       })
     }
     toast.success('值班规则已保存')

@@ -354,9 +354,10 @@
   <div class="cover-main">
     <div class="cover-kicker">PROJECT INTRODUCTION · 项目介绍</div>
     <div class="cover-title">供电所值班业务<br>数字化值守管理平台</div>
-    <div class="cover-sub">面向供电所值班业务的数字化值守解决方案：以「多站点隔离、值班记录数字化、工单时限治理、智能预警提醒」为核心，替代传统纸面台账，实现值班过程可记录、可追溯、可统计、可预警。</div>
+    <div class="cover-sub">面向供电所值班业务的数字化值守解决方案：以「市—区县—供电所三级组织、值班记录数字化、工单时限治理、智能预警提醒」为核心，替代传统纸面台账，实现值班过程可记录、可追溯、可统计、可预警。</div>
     <div class="cover-tags">
-      <span class="cover-tag">多站点架构</span>
+      <span class="cover-tag">三级组织架构</span>
+      <span class="cover-tag">四级角色权限</span>
       <span class="cover-tag">值班记录数字化</span>
       <span class="cover-tag">工单时限治理</span>
       <span class="cover-tag">临近超时智能提醒</span>
@@ -370,7 +371,7 @@
     </div>
     <div class="cover-ver">
       <span class="cover-ver-label">文档版本</span>
-      <span class="cover-ver-num">V1.0</span>
+      <span class="cover-ver-num">V2.0</span>
     </div>
   </div>
 </div>
@@ -382,7 +383,7 @@
   <div class="toc-row"><span class="toc-no">02</span><div><div class="toc-name">解决的需求痛点</div><div class="toc-desc">传统值班业务十大痛点 → 平台对应解决方案与价值</div></div></div>
   <div class="toc-row"><span class="toc-no">03</span><div><div class="toc-name">系统总体架构</div><div class="toc-desc">技术栈 · 分层架构 · 多站点数据隔离 · 核心数据模型</div></div></div>
   <div class="toc-row"><span class="toc-no">04</span><div><div class="toc-name">核心功能模块</div><div class="toc-desc">主控台 · 值班记录 · 值班工单 · 工单时限治理 · 值班排班 · 全局搜索 · 导出管理 · 系统配置 · 认证权限</div></div></div>
-  <div class="toc-row"><span class="toc-no">05</span><div><div class="toc-name">角色与权限体系</div><div class="toc-desc">值班员 / 所长 / 管理员三角色 · 权限矩阵</div></div></div>
+  <div class="toc-row"><span class="toc-no">05</span><div><div class="toc-name">组织与角色权限体系</div><div class="toc-desc">市—区县—供电所三级组织 · 四级角色 · 权限矩阵</div></div></div>
   <div class="toc-row"><span class="toc-no">06</span><div><div class="toc-name">技术亮点与工程实践</div><div class="toc-desc">可插拔存储 · 统一超时判定口径 · 预警引擎 · 安全加固</div></div></div>
   <div class="toc-row"><span class="toc-no">07</span><div><div class="toc-name">运行与部署</div><div class="toc-desc">环境要求 · 启动步骤 · 存储模式切换</div></div></div>
   <div class="toc-row"><span class="toc-no">08</span><div><div class="toc-name">结语</div><div class="toc-desc">建设成效与后续展望</div></div></div>
@@ -392,7 +393,7 @@
 <div class="chapter">
   <div class="chapter-title">01 · 项目简介<span class="en">Introduction</span></div>
 
-  <p class="lead">供电所值守云平台是一套面向供电所值班业务的全流程数字化管理平台，覆盖<b>日常巡视、接单报修、95598 工单处理、运行日志记录、交接班衔接</b>等值守核心场景，通过统一的数据底座与智能预警能力，让每一位值班员的每一单工作都「<b>有记录、有时限、有提醒、可统计</b>」。</p>
+  <p class="lead">供电所值守云平台是一套面向供电所值班业务的全流程数字化管理平台，采用「<b>市级 — 区县级 — 供电所</b>」三级组织架构，覆盖<b>日常巡视、接单报修、95598 工单处理、运行日志记录、交接班衔接</b>等值守核心场景，通过统一的数据底座与智能预警能力，让每一位值班员的每一单工作都「<b>有记录、有时限、有提醒、可统计</b>」。</p>
 
   <h3>项目背景</h3>
   <p>供电所是电网运行保障的最末端，值守工作直接关系到辖区线路、台区与用户的用电安全。传统值守业务普遍依赖纸面台账与手工表格：值班记录写在值班日志本上、工单处理情况记在 Excel 里、排班靠口头通知、超时工单无人察觉、月度统计靠人工逐条汇总。这种模式存在记录易丢、口径不一、追溯困难、监督缺位等突出问题，也制约了班组向精细化、数字化管理转型。</p>
@@ -401,7 +402,7 @@
   <table>
     <tr><th style="width:34%">目标维度</th><th>建设内容</th></tr>
     <tr><td><b>记录数字化</b></td><td>值班记录、值班工单全流程在线填写，同站同天唯一，杜绝重复与丢失；记录到达期限后系统自动锁定，防止事后篡改。</td></tr>
-    <tr><td><b>管理多所化</b></td><td>一套平台纳管多个供电所，站点级数据隔离与独立配置（工单上限、工单时限、排班），管理员可跨站运维。</td></tr>
+    <tr><td><b>组织层级化</b></td><td>「市级 — 区县 — 供电所」三级组织：市级超管管全市，区县管理员管本区县供电所，所长/值班员管本所；数据按站点隔离，职责边界清晰。</td></tr>
     <tr><td><b>工单时效化</b></td><td>为每类工单设定处理时限，超时自动识别、临近时限自动弹窗 + 警报音提醒，超时情况纳入统计。</td></tr>
     <tr><td><b>监督透明化</b></td><td>操作日志全程留痕（谁、何时、做了什么、变更前后对比），权限按角色收敛，全流程可审计。</td></tr>
     <tr><td><b>统计可视化</b></td><td>主控台聚合展示接单趋势、业务分布、响应时长、接单热力图、超时率、重复报修等指标，为管理决策提供数据支撑。</td></tr>
@@ -416,7 +417,10 @@
       <div class="tip">对<b>所长</b>：本所记录一目了然，支持排班管理、数据导出、工单时限规则配置。</div>
     </div>
     <div>
-      <div class="tip ok">对<b>管理员</b>：多站点统一运维，用户、字典、日志、规则全局掌控，系统运行可审计、可追溯。</div>
+      <div class="tip">对<b>区县管理员</b>：管理本区县下所有供电所，可切换站内数据、维护站点与账号、导出本区县报表。</div>
+    </div>
+    <div>
+      <div class="tip ok">对<b>市级超管</b>：全市统一运维，区县/站点/用户/字典/日志/规则全局掌控，系统运行可审计、可追溯。</div>
     </div>
   </div>
 </div>
@@ -445,8 +449,8 @@
   <div class="pain red">
     <div class="pain-side"></div>
     <div class="pain-body">
-      <div class="pain-head"><span class="pain-tag">痛点 03</span><span class="pain-p">多所数据混用，站点边界不清</span><span class="pain-note">多个供电所共用一个台账，数据相互干扰，责任难以划分到所。</span></div>
-      <div class="pain-solve"><span class="pain-arrow">→</span><div class="pain-solve-text"><b>多站点隔离架构</b>：每份记录、每位值班员均归属站点；所长与值班员仅见本所数据，管理员可跨站运维，站点级配置互不影响。</div></div>
+      <div class="pain-head"><span class="pain-tag">痛点 03</span><span class="pain-p">组织层级缺失，市/区县/供电所管理边界不清</span><span class="pain-note">多个供电所、多个区县供电中心共用台账，市级与区县级管理权限无分层，责任难以划清。</span></div>
+      <div class="pain-solve"><span class="pain-arrow">→</span><div class="pain-solve-text"><b>三级组织 + 多站点隔离</b>：市级超管管全市、区县管理员管本区县供电所、所长/值班员管本所；记录、工单、排班、配置均归属站点，逐级收敛、互不越权。</div></div>
     </div>
   </div>
 
@@ -502,7 +506,7 @@
     <div class="pain-side"></div>
     <div class="pain-body">
       <div class="pain-head"><span class="pain-tag">痛点 10</span><span class="pain-p">报表上报繁琐、无审计、权限粗放</span><span class="pain-note">向上级报送月度值班报表需手工整理；操作无留痕；密码与权限管理简单粗暴。</span></div>
-      <div class="pain-solve"><span class="pain-arrow">→</span><div class="pain-solve-text"><b>一键 Excel 导出 + 操作日志 + 三角色权限</b>：月度/区间报表一键导出；操作日志记录登录、增删改、锁定、完成、导出等全程行为；JWT 双 Token + 密码重置吊销会话，权限按角色收敛。</div></div>
+      <div class="pain-solve"><span class="pain-arrow">→</span><div class="pain-solve-text"><b>一键 Excel 导出 + 操作日志 + 四级角色权限</b>：月度/区间报表一键导出，市级/区县管理员可导出辖内数据；操作日志记录登录、增删改、锁定、完成、导出等全程行为；JWT 双 Token + 密码重置吊销会话，权限按组织层级收敛。</div></div>
     </div>
   </div>
 </div>
@@ -527,7 +531,7 @@
       <table>
         <tr><th colspan="2">后端 · 服务端</th></tr>
         <tr><td style="width:38%">框架</td><td>NestJS 10 + TypeScript 5</td></tr>
-        <tr><td>存储</td><td>可插拔 StorageService 抽象层<br>MongoDB / JSON 文件（零依赖）</td></tr>
+        <tr><td>存储</td><td>可插拔 StorageService 抽象层<br>MySQL（生产）/ MongoDB / JSON 文件（零依赖）</td></tr>
         <tr><td>认证</td><td>JWT 双 Token + bcryptjs 密码哈希</td></tr>
         <tr><td>校验</td><td>class-validator DTO 层校验</td></tr>
         <tr><td>定时任务</td><td>@nestjs/schedule（自动锁定）</td></tr>
@@ -555,44 +559,58 @@
       <div class="arch-arrow">→</div>
       <div class="arch-layer storage">
         <div class="arch-title">数据存储层 · 可插拔</div>
-        <div class="arch-node"><b>MongoDB</b><span class="sub">生产模式 STORAGE_MODE=mongo</span></div>
-        <div class="arch-node"><b>JSON 文件持久化</b><span class="sub">开箱即用 STORAGE_MODE=file</span></div>
+        <div class="arch-node"><b>MySQL</b><span class="sub">生产模式 STORAGE_MODE=mysql</span></div>
+        <div class="arch-node"><b>MongoDB / JSON 文件</b><span class="sub">mongo 模式 · file 零依赖开箱即用</span></div>
       </div>
     </div>
     <div class="legend"><span>◆ 前端 Vue3 + Pinia</span><span>◆ 后端 NestJS + TypeScript</span><span>◆ 存储抽象层按需切换，业务代码零改动</span></div>
     <div class="cap"><b>图 3-1</b> 系统总体分层架构</div>
   </div>
 
-  <h3>3.3 多站点数据隔离</h3>
-  <p>平台以「站点」为核心租户维度：<b>每个供电所 = 一个站点</b>，站点拥有独立的基础信息、值班规则（每班最大工单数、工单时限）与排班配置。值班记录、工单均挂载站点，形成数据隔离边界。</p>
+  <h3>3.3 三级组织与数据隔离</h3>
+  <p>平台以「供电所 = 站点」为数据隔离单元，供电所归属区县、区县归属市级，形成<b>市级 — 区县 — 供电所</b>三级组织树。站点拥有独立的基础信息、所属区县、值班规则（每班最大工单数、工单时限）与排班配置；值班记录、工单均挂载站点。</p>
   <div class="fig">
     <div class="multi">
       <div class="multi-col highlight">
-        <div class="mc-name">供电所 A</div>
-        <div class="multi-role"><span class="dot" style="background:#10b981"></span>值班员·本所<b style="margin-left:auto;font-weight:400" class="badge ok">全权限</b></div>
-        <div class="multi-role"><span class="dot" style="background:#f59e0b"></span>所长·本所<b style="margin-left:auto;font-weight:400" class="badge warn">管理本所</b></div>
-        <div class="multi-role"><span class="dot" style="background:#2563eb"></span>管理员<b style="margin-left:auto;font-weight:400" class="badge info">可跨站</b></div>
-        <div class="multi-lock">记录 · 工单 · 排班 · 工单时限(默认45min) · 工单上限</div>
+        <div class="mc-name">市级 · 国网淄博供电公司</div>
+        <div class="multi-role"><span class="dot" style="background:#2563eb"></span>市级超管 admin<b style="margin-left:auto;font-weight:400" class="badge info">全市</b></div>
+        <div class="multi-lock">管理全部区县与供电所 · 账号 / 字典 / 日志 / 规则</div>
       </div>
-      <div class="arch-arrow" style="display:flex;align-items:center">⟷</div>
+      <div class="arch-arrow" style="display:flex;align-items:center">↓</div>
       <div class="multi-col highlight">
-        <div class="mc-name">供电所 B</div>
-        <div class="multi-role"><span class="dot" style="background:#10b981"></span>值班员·本所<b style="margin-left:auto;font-weight:400" class="badge ok">全权限</b></div>
-        <div class="multi-role"><span class="dot" style="background:#f59e0b"></span>所长·本所<b style="margin-left:auto;font-weight:400" class="badge warn">管理本所</b></div>
-        <div class="multi-role"><span class="dot" style="background:#2563eb"></span>管理员<b style="margin-left:auto;font-weight:400" class="badge info">可跨站</b></div>
-        <div class="multi-lock">记录 · 工单 · 排班 · 独立规则配置</div>
+        <div class="mc-name">区县级 · 供电中心 / 县公司</div>
+        <div class="multi-role"><span class="dot" style="background:#8b5cf6"></span>区县管理员 district_admin<b style="margin-left:auto;font-weight:400" class="badge warn">本区县</b></div>
+        <div class="multi-lock">管理本区县下所有供电所（站点 / 账号 / 数据 / 导出）</div>
+      </div>
+      <div class="arch-arrow" style="display:flex;align-items:center">↓</div>
+      <div class="multi-col highlight">
+        <div class="mc-name">供电所（站点）</div>
+        <div class="multi-role"><span class="dot" style="background:#10b981"></span>所长 supervisor<b style="margin-left:auto;font-weight:400" class="badge ok">本所</b></div>
+        <div class="multi-role"><span class="dot" style="background:#f59e0b"></span>值班员 duty_officer<b style="margin-left:auto;font-weight:400" class="badge warn">本所</b></div>
+        <div class="multi-lock">记录 · 工单 · 排班 · 时限(默认45min) · 独立配置</div>
       </div>
     </div>
-    <div class="cap"><b>图 3-2</b> 多站点数据隔离与独立配置</div>
+    <div class="legend"><span>◆ 淄博五区三县 8 个区县供电中心/县供电公司</span><span>◆ 站点级数据隔离 + 独立规则配置</span></div>
+    <div class="cap"><b>图 3-2</b> 市—区县—供电所 三级组织与数据隔离</div>
   </div>
 
   <h3>3.4 核心数据模型</h3>
   <div class="fig">
     <div class="er">
       <div class="er-card">
+        <div class="er-name">districts 区县</div>
+        <div class="er-fields">
+          <div><span class="pk">id</span></div>
+          <div><span>name</span><span class="muted">张店供电中心</span></div>
+          <div><span>code</span></div>
+        </div>
+      </div>
+      <div class="er-link"><span class="ln">1</span><span>⟷</span><span>N</span></div>
+      <div class="er-card">
         <div class="er-name">stations 站点</div>
         <div class="er-fields">
           <div><span class="pk">id</span></div>
+          <div><span class="fk">district_id</span></div>
           <div><span>name</span></div>
           <div><span>code</span></div>
           <div><span>max_duty_items_per_record</span></div>
@@ -636,8 +654,8 @@
         </div>
       </div>
     </div>
-    <div class="legend"><span class="badge info">主键</span><span class="badge warn">外键</span><span>同站同天唯一：stations+record_date 唯一约束</span></div>
-    <div class="cap"><b>图 3-3</b> 核心实体关系（ER）</div>
+    <div class="legend"><span class="badge info">主键</span><span class="badge warn">外键</span><span>区县→站点 1:N</span><span>同站同天唯一：stations+record_date</span></div>
+    <div class="cap"><b>图 3-3</b> 核心实体关系（ER，含区县层级）</div>
   </div>
 </div>
 
@@ -711,7 +729,7 @@
   <ul>
     <li><b>列表管理</b>：分页 + 日期区间 / 状态筛选，状态徽标实时展示「进行中 / 即将锁定 / 已锁定 / 已归档」。</li>
     <li><b>详情呈现</b>：时间线式工单展示，未完成工单带「剩余 X 分钟 / 已超时」徽标，已完成超时工单带「超时」徽标。</li>
-    <li><b>权限控制</b>：值班员可编辑本人记录；锁定记录仅管理员可编辑；所长可锁定/解锁本所记录。</li>
+    <li><b>权限控制</b>：值班员可编辑本人记录；锁定记录仅市级超管可编辑；所长可锁定本所记录；区县管理员仅查看本区县。</li>
     <li><b>一键完成</b>：批量完成当日全部工单，加快交接效率。</li>
   </ul>
 
@@ -757,34 +775,37 @@
   <h3>4.7 导出管理</h3>
   <p>所长及以上角色可一键导出 Excel：<b>月度报表</b>（指定年/月、可含模板、可合并多所）与<b>自定义区间报表</b>；导出任务带历史记录与进度状态，完成后可下载。</p>
 
-  <h3>4.8 系统配置</h3>
+  <h3>4.8 组织与系统配置</h3>
   <table>
     <tr><th style="width:24%">配置区块</th><th>内容</th></tr>
-    <tr><td><b>站点信息</b></td><td>站点名称、编码、区域、电压等级、馈线数、变压器数</td></tr>
+    <tr><td><b>组织层级</b></td><td>市级 → 区县（淄博五区三县 8 个供电中心/县公司）→ 供电所，站点按区县归属</td></tr>
+    <tr><td><b>站点信息</b></td><td>站点名称、所属区县；新增站点按区县归属（市级/区县管理员）</td></tr>
     <tr><td><b>值班规则</b></td><td>每班最大工单数、<b>工单时限（分钟）</b>——站点级独立</td></tr>
     <tr><td><b>字典管理</b></td><td>业务类型、受理内容、处理结果、值班员（带站点归属）</td></tr>
-    <tr><td><b>用户管理</b></td><td>用户增删改、角色分配、所属站点、重置密码（自动吊销旧会话）</td></tr>
-    <tr><td><b>值班排班</b></td><td>排班周期与人员分组配置</td></tr>
+    <tr><td><b>用户管理</b></td><td>四级角色（值班员/所长/区县管理员/市级超管）增删改、所属站点/区县、重置密码（自动吊销旧会话）</td></tr>
+    <tr><td><b>值班排班</b></td><td>排班周期与人员分组配置（站点级）</td></tr>
     <tr><td><b>操作日志</b></td><td>登录/增删改/锁定/完成/导出等行为留痕（用户、时间、IP、变更 diff）</td></tr>
   </table>
 </div>
 
 <!-- ==================== 05 角色与权限体系 ==================== -->
 <div class="chapter">
-  <div class="chapter-title">05 · 角色与权限体系<span class="en">Roles &amp; Permissions</span></div>
-  <p class="lead">平台采用「站点隔离 + 角色收敛」的双重权限模型：先按站点限数据可见范围，再按角色限功能操作范围。</p>
+  <div class="chapter-title">05 · 组织与角色权限体系<span class="en">Organization, Roles &amp; Permissions</span></div>
+  <p class="lead">平台采用「组织层级 + 角色收敛」的双重权限模型：先按组织层级（市—区县—供电所）限定数据可见范围，再按四级角色限定功能操作范围，后端统一作用域校验兜底。</p>
   <div class="fig">
     <table>
-      <tr><th style="width:16%">能力</th><th style="width:28%">值班员 duty_officer</th><th style="width:28%">所长 supervisor</th><th style="width:28%">管理员 admin</th></tr>
-      <tr><td><b>数据范围</b></td><td>仅本所</td><td>仅本所</td><td>全部站点（可切换）</td></tr>
-      <tr><td><b>值班记录</b></td><td>创建 / 编辑本人记录、查看本所</td><td>查看 / 锁定本所记录、创建</td><td>全部站点增删改查、锁定 / 解锁</td></tr>
-      <tr><td><b>值班工单</b></td><td>增删改 / 完成本所工单</td><td>增删改 / 完成本所工单</td><td>全部站点工单</td></tr>
-      <tr><td><b>值班排班</b></td><td>查看</td><td>查看 / 配置本所排班</td><td>查看 / 配置全部站点</td></tr>
-      <tr><td><b>导出管理</b></td><td>查看导出历史</td><td>发起导出 / 下载 / 历史</td><td>发起导出 / 下载 / 历史</td></tr>
-      <tr><td><b>系统配置</b></td><td>—</td><td>本所站点信息 / 值班规则 / 字典 / 排班</td><td>全部配置 + 用户管理 + 操作日志</td></tr>
-      <tr><td><b>工单时限</b></td><td>—</td><td>配置本所时限</td><td>配置任意站点时限</td></tr>
+      <tr><th style="width:13%">能力</th><th style="width:21%">值班员 duty_officer</th><th style="width:22%">所长 supervisor</th><th style="width:22%">区县管理员 district_admin</th><th style="width:22%">市级超管 admin</th></tr>
+      <tr><td><b>数据范围</b></td><td>仅本所</td><td>仅本所</td><td>本区县全部供电所（可切换）</td><td>全市（可切换任意供电所）</td></tr>
+      <tr><td><b>值班记录</b></td><td>创建 / 编辑本人记录、查看本所</td><td>查看 / 锁定本所记录、创建</td><td>查看本区县记录（不可编辑）</td><td>全部站点增删改查、锁定 / 解锁</td></tr>
+      <tr><td><b>值班工单</b></td><td>增删改 / 完成本所工单</td><td>增删改 / 完成本所工单</td><td>查看（不可编辑）</td><td>全部站点工单</td></tr>
+      <tr><td><b>值班排班</b></td><td>查看</td><td>查看 / 配置本所排班</td><td>查看本区县（只读）</td><td>查看 / 配置任意站点</td></tr>
+      <tr><td><b>站点管理</b></td><td>—</td><td>本所信息</td><td>本区县站点增删改（不可改区县归属）</td><td>全部站点增删改</td></tr>
+      <tr><td><b>用户管理</b></td><td>—</td><td>本所值班员 / 所长</td><td>本区县值班员 / 所长（不可建管理员）</td><td>全部角色（含区县管理员）</td></tr>
+      <tr><td><b>导出管理</b></td><td>查看历史</td><td>本所导出</td><td>本区县导出</td><td>全市导出</td></tr>
+      <tr><td><b>系统配置</b></td><td>—</td><td>本所站点/规则/字典/排班</td><td>本区县站点/账号（排班与规则只读）</td><td>全部配置 + 操作日志</td></tr>
+      <tr><td><b>工单时限</b></td><td>—</td><td>配置本所时限</td><td>—</td><td>配置任意站点时限</td></tr>
     </table>
-    <div class="cap"><b>表 5-1</b> 角色权限矩阵</div>
+    <div class="cap"><b>表 5-1</b> 四级角色权限矩阵</div>
   </div>
   <div class="tip">权限落地：前端路由按角色显隐（meta.roles 守卫），后端每个接口按角色 + 站点双重校验，前端隐藏 ≠ 可越权，数据安全在后端兜底。</div>
 </div>
@@ -795,7 +816,9 @@
   <div class="cols">
     <div>
       <h3>可插拔存储层</h3>
-      <p>后端通过 <b>StorageService 抽象接口</b>解耦数据访问，提供 <b>MongoDB</b>（生产模式）与 <b>JSON 文件持久化</b>（零依赖开箱即用）两种实现，通过环境变量一键切换，业务代码零改动——演示、单机部署、生产部署均可用。</p>
+      <p>后端通过 <b>StorageService 抽象接口</b>解耦数据访问，提供 <b>MySQL</b>（生产模式）、<b>MongoDB</b> 与 <b>JSON 文件持久化</b>（零依赖开箱即用）三种实现，通过环境变量一键切换，业务代码零改动——演示、单机部署、生产部署均可用。</p>
+      <h3>统一作用域校验（ScopeService）</h3>
+      <p>三级组织的可见范围判定收敛为单一服务（<b>ScopeService</b>）：市级超管 → 全部站点、区县管理员 → 本区县站点、所长/值班员 → 本所；仪表板、记录、搜索、导出等读链路统一复用，越权访问在后端被拦截。</p>
       <h3>统一超时判定口径</h3>
       <p>超时判定逻辑收敛为<b>单一共享工具函数</b>（`utils/orderTimeout.js`），列表徽标、看板统计、全局提醒三处复用，并正确规避「跨天 +1440」「历史记录完整时间戳判定」「空受理时间不判定」等边界坑。</p>
       <h3>智能预警引擎</h3>
@@ -805,7 +828,7 @@
       <h3>记录治理机制</h3>
       <p>「同站同天唯一」智能 upsert 杜绝重复记录；<b>定时任务自动锁定</b>过期记录，锁定后仅管理员可解锁，保证历史数据的公信力。</p>
       <h3>安全加固</h3>
-      <p>JWT 双 Token（短期访问 + 长期刷新）、密码 bcrypt 哈希、重置密码自动吊销旧会话、操作日志全量留痕（含 IP 与变更 diff）、DTO 参数严格校验、角色 + 站点双重权限校验。</p>
+      <p>JWT 双 Token（短期访问 + 长期刷新）、密码 bcrypt 哈希、重置密码自动吊销旧会话、操作日志全量留痕（含 IP 与变更 diff）、DTO 参数严格校验、组织层级 + 角色双重权限校验。</p>
       <h3>轻量自研组件</h3>
       <p>前端不引入重型 UI 框架，基于 SCSS 设计令牌自研 StatCard / 趋势图 / 环形图 / 热力图 / 排班表等轻量组件，首屏体积小、加载快、风格统一。</p>
     </div>
@@ -819,23 +842,23 @@
   <table>
     <tr><th style="width:22%">依赖</th><th>说明</th></tr>
     <tr><td>Node.js</td><td>≥ 18（前后端构建与运行）</td></tr>
-    <tr><td>MongoDB</td><td>生产存储（可选：JSON 文件模式则无需数据库）</td></tr>
+    <tr><td>MySQL</td><td>生产存储（正式库；可插拔：也可用 MongoDB / JSON 文件）</td></tr>
     <tr><td>浏览器</td><td>现代浏览器（Chrome / Edge / Firefox）</td></tr>
   </table>
   <h3>7.2 启动步骤</h3>
   <ul>
-    <li><b>后端</b>：进入后端目录 → 安装依赖 → 配置 `.env`（端口、存储模式）→ `npm run build` → `node dist/main.js`，默认监听 3000 端口，Swagger 文档自动生成。</li>
-    <li><b>前端</b>：进入前端目录 → 安装依赖 → `npm run dev`（开发，默认 5199 端口）或 `npm run build` 产出静态文件部署。</li>
+    <li><b>后端</b>：进入后端目录 → 安装依赖 → 配置 `.env`（开发）或 `.env.production`（生产，`NODE_ENV=production` 时加载）→ `npm run build` → `node dist/main.js`；开发默认 3000 端口、生产 60000，Swagger 文档自动生成。</li>
+    <li><b>前端</b>：进入前端目录 → 安装依赖 → `npm run dev`（开发，默认 5199 端口）或 `npm run build` 产出静态文件部署（生产环境 `VITE_API_BASE` 直连后端 60000）。</li>
   </ul>
   <h3>7.3 存储模式切换</h3>
-  <p>通过环境变量 `STORAGE_MODE=mongo | file` 一键切换存储后端；历史数据缺字段时系统自动回填默认值（如旧站点工单时限自动回填 45 分钟），迁移对业务透明。</p>
-  <div class="tip ok">部署灵活：单机演示可用 JSON 文件模式零依赖启动；正式生产切到 MongoDB，业务代码无需任何改动。</div>
+  <p>通过环境变量 `STORAGE_MODE=mysql | mongo | file` 一键切换存储后端；MySQL 模式启动自动建库建表、空库自动写入种子数据（8 区县 + 演示账号），历史数据缺字段时系统自动回填默认值，迁移对业务透明。</p>
+  <div class="tip ok">部署灵活：单机演示可用 JSON 文件模式零依赖启动；正式生产切到 MySQL，业务代码无需任何改动。</div>
 </div>
 
 <!-- ==================== 08 结语 ==================== -->
 <div class="chapter">
   <div class="chapter-title">08 · 结语<span class="en">Conclusion</span></div>
-  <p class="lead">供电所值守云平台以「数字化记录 + 站点级隔离 + 工单时限治理 + 智能预警」为核心，把供电所值守业务从纸面台账带入可记录、可追溯、可统计、可预警的数字化管理阶段。</p>
+  <p class="lead">供电所值守云平台以「数字化记录 + 三级组织协同 + 工单时限治理 + 智能预警」为核心，把供电所值守业务从纸面台账带入可记录、可追溯、可统计、可预警、可分层管理的数字化阶段。</p>
   <table>
     <tr><th style="width:34%">维度</th><th>建设成效</th></tr>
     <tr><td><b>效率</b></td><td>值班记录在线化、同站同天唯一、一键完成工单，班前班后台账整理时间大幅压缩。</td></tr>
@@ -844,7 +867,7 @@
     <tr><td><b>决策</b></td><td>趋势、分布、响应时长、热力图、重复报修等看板指标，为人力排班与隐患治理提供数据支撑。</td></tr>
   </table>
   <p>未来可继续扩展的方向包括：与 95598 工单系统对接实现工单自动导入、移动端值守场景支持、按超时率与响应时长的班组考核评分、以及基于历史数据的负荷与故障预测分析。平台将伴随供电所数字化班组建设持续演进。</p>
-  <div style="margin-top:26pt;text-align:center;color:var(--ink-3);font-size:9pt;">供电所值守云平台 · 项目介绍文档 · V1.0 · 2026-08</div>
+  <div style="margin-top:26pt;text-align:center;color:var(--ink-3);font-size:9pt;">供电所值守云平台 · 项目介绍文档 · V2.0 · 2026-08</div>
 </div>
 
 </body>

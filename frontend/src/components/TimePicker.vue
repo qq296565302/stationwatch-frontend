@@ -33,7 +33,8 @@
                 :key="`h${h}`"
                 type="button"
                 class="cell"
-                :class="{ active: hour === h }"
+                :class="{ active: hour === h, disabled: isHourDisabled(h) }"
+                :disabled="isHourDisabled(h)"
                 @click="pickHour(h)"
               >
                 {{ pad(h) }}
@@ -50,7 +51,8 @@
                 :key="`m${m}`"
                 type="button"
                 class="cell"
-                :class="{ active: minute === m }"
+                :class="{ active: minute === m, disabled: isMinuteDisabled(m) }"
+                :disabled="isMinuteDisabled(m)"
                 @click="pickMinute(m)"
               >
                 {{ pad(m) }}
@@ -67,6 +69,7 @@
             </svg>
             当前时间
           </button>
+          <span v-if="limitToNow" class="limit-hint">仅可选择当前及之前时间</span>
         </div>
       </div>
     </transition>
@@ -78,12 +81,18 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
-  error:      { type: Boolean, default: false }
+  error:      { type: Boolean, default: false },
+  // 为 true 时：打开面板按「当前时间」为上限，晚于当前的时间格子禁用（用于受理时间，防误选未来）
+  limitToNow: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:modelValue', 'blur'])
 
 const isOpen = ref(false)
+
+// 打开面板时取一次当前时间作为选择上限（limitToNow 开启时生效）
+const nowHour = ref(23)
+const nowMinute = ref(59)
 
 // 把外部 modelValue 解析为 hour / minute
 const hour = computed(() => {
@@ -101,7 +110,23 @@ const minutes = Array.from({ length: 12 }, (_, i) => i * 5)
 
 const pad = (n) => String(n).padStart(2, '0')
 
+const refreshNow = () => {
+  const d = new Date()
+  nowHour.value = d.getHours()
+  nowMinute.value = d.getMinutes()
+}
+
+// 小时格子禁用：晚于当前小时
+const isHourDisabled = (h) => props.limitToNow && h > nowHour.value
+
+// 分钟格子禁用：所选小时晚于当前小时，或所选小时等于当前小时但分钟更晚
+const isMinuteDisabled = (m) =>
+  props.limitToNow &&
+  (hour.value === null || hour.value > nowHour.value ||
+    (hour.value === nowHour.value && m > nowMinute.value))
+
 const toggleOpen = () => {
+  if (!isOpen.value && props.limitToNow) refreshNow()
   isOpen.value = !isOpen.value
 }
 
@@ -279,6 +304,13 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocClick))
     background: $bg-hover;
   }
 
+  &.disabled {
+    color: $text-faint;
+    cursor: not-allowed;
+
+    &:hover { background: transparent; }
+  }
+
   &.active {
     background: $primary;
     color: $text-inverse;
@@ -315,6 +347,14 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocClick))
     color: $accent;
     background: $accent-soft;
   }
+}
+
+.limit-hint {
+  display: block;
+  margin-top: 6px;
+  text-align: center;
+  font-size: 11px;
+  color: $text-muted;
 }
 
 // ---- 动画 ----

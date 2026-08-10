@@ -55,7 +55,7 @@
             <div class="form-grid">
               <div class="field">
                 <label class="field-label">受理时间</label>
-                <TimePicker v-model="item.acceptTime" />
+                <TimePicker v-model="item.acceptTime" :limit-to-now="acceptTimeLimitToNow" />
               </div>
 
               <div class="field">
@@ -198,10 +198,12 @@ import ComboboxInput from '@/components/ComboboxInput.vue'
 import TimePicker from '@/components/TimePicker.vue'
 import { useAppStore } from '@/store'
 import { getCurrentTime } from '@/data/mockData'
+import { getTodayISO } from '@/utils/orderTimeout'
 import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
-  modelValue: { type: Array, required: true }
+  modelValue: { type: Array, required: true },
+  recordDate: { type: String, default: '' }
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -219,6 +221,9 @@ const items = computed({
   get: () => props.modelValue,
   set: (v) => emit('update:modelValue', v)
 })
+
+// 受理时间限制：仅「今天」的记录不允许选晚于当前时刻的时间；选过去日期（如昨天）时全天可选
+const acceptTimeLimitToNow = computed(() => props.recordDate === getTodayISO())
 
 const expandedIds = ref(new Set())
 

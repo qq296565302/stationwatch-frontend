@@ -117,6 +117,7 @@
             :key="record.id"
             @click="$router.push(`/records/${record.id}`)"
             class="record-row"
+            :class="{ 'has-pending': record.hasPending }"
           >
             <td>
               <span class="font-mono">{{ record.recordDate }}</span>
@@ -140,10 +141,20 @@
               </div>
             </td>
             <td>
-              <StatusBadge
-                :label="displayStatus(record).label"
-                :variant="displayStatus(record).variant"
-              />
+              <div class="status-cell">
+                <StatusBadge
+                  :label="displayStatus(record).label"
+                  :variant="displayStatus(record).variant"
+                />
+                <span
+                  v-if="record.hasPending"
+                  class="pending-tag"
+                  :title="pendingUnresolved(record).map(p => p.content).join('；')"
+                >
+                  <i class="pending-dot"></i>
+                  遗留{{ pendingUnresolved(record).length }}
+                </span>
+              </div>
             </td>
             <td @click.stop class="action-cell">
               <button class="btn btn-icon" title="查看" @click="$router.push(`/records/${record.id}`)">
@@ -219,7 +230,9 @@
             ></div>
           </div>
         </div>
-        <div v-if="record.hasPending" class="card-warning">有遗留问题待处理</div>
+        <div v-if="record.hasPending" class="card-warning">
+          有 {{ pendingUnresolved(record).length }} 条遗留问题待处理
+        </div>
       </div>
 
       <div v-if="!filteredRecords.length" class="empty">
@@ -249,6 +262,9 @@ const displayStatus = (record) => store.recordDisplayStatus(record)
 const officerText = (r) => (r.dutyOfficers && r.dutyOfficers.length)
   ? r.dutyOfficers.join(' / ')
   : (r.creator || '—')
+
+// 未确认解决的遗留问题条目（列表表格徽标 / 卡片警示）
+const pendingUnresolved = (r) => (r.pendingIssues || []).filter(p => !p.isResolved)
 
 const viewMode = ref('table')
 
@@ -480,6 +496,42 @@ watch(() => store.recordsLoaded, (v) => { if (v) {/* noop */} })
 .action-cell {
   display: flex;
   gap: 4px;
+}
+
+// ===== 遗留问题徽标（表格） =====
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pending-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid $warn-border;
+  background: $warn-soft;
+  color: #b45309;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  cursor: default;
+  white-space: nowrap;
+}
+
+.pending-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: $warn;
+  flex-shrink: 0;
+}
+
+// 有未解决遗留问题的行：左侧琥珀色竖条标识
+tr.has-pending td:first-child {
+  box-shadow: inset 3px 0 0 $warn;
 }
 
 .progress-cell {
