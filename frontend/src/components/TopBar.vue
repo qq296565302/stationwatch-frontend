@@ -137,6 +137,48 @@
         {{ currentStationName }}
       </div>
 
+      <!-- 字体大小切换 -->
+      <div ref="fontSwitcher" class="font-switcher">
+        <button
+          class="font-trigger"
+          type="button"
+          :class="{ open: fontOpen }"
+          @click="toggleFontOpen"
+          title="调整字体大小"
+          aria-label="调整字体大小"
+        >
+          <span class="font-trigger-icon font-mono">Aa</span>
+          <span class="font-trigger-label">{{ fontScaleLabel }}</span>
+          <svg class="font-caret" :class="{ open: fontOpen }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+
+        <teleport to="body">
+          <div
+            v-if="fontOpen"
+            class="font-dropdown"
+            :style="fontDropdownStyle"
+            @mousedown.prevent
+          >
+            <div class="font-dropdown-title">字体大小</div>
+            <button
+              v-for="opt in fontOptions"
+              :key="opt.value"
+              type="button"
+              class="font-option"
+              :class="{ active: store.fontScale === opt.value }"
+              @click="pickFontScale(opt.value)"
+            >
+              <span class="font-option-text" :style="{ fontSize: opt.px }">{{ opt.label }}</span>
+              <svg v-if="store.fontScale === opt.value" class="font-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </button>
+          </div>
+        </teleport>
+      </div>
+
       <div class="time-display font-mono">{{ currentTime }}</div>
     </div>
   </header>
@@ -285,6 +327,44 @@ const onDocClick = (e) => {
   if (box && !box.contains(e.target)) closeSearch()
 }
 
+// ===== 字体大小切换 =====
+const fontOpen = ref(false)
+const fontSwitcher = ref(null)
+const fontDropdownStyle = ref({})
+const fontOptions = [
+  { value: 1, label: '正常', px: 13 },
+  { value: 1.5, label: '大', px: 19 }
+]
+const fontScaleLabel = computed(() => {
+  const opt = fontOptions.find(o => o.value === store.fontScale)
+  return opt ? opt.label : '正常'
+})
+
+const toggleFontOpen = () => {
+  if (fontOpen.value) { fontOpen.value = false; return }
+  const el = fontSwitcher.value
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  fontDropdownStyle.value = {
+    top: (r.bottom + 6) + 'px',
+    right: (window.innerWidth - r.right) + 'px',
+    minWidth: Math.max(r.width, 150) + 'px'
+  }
+  fontOpen.value = true
+}
+
+const pickFontScale = (scale) => {
+  store.setFontScale(scale)
+  fontOpen.value = false
+}
+
+const onFontDocClick = (e) => {
+  if (!fontOpen.value) return
+  const el = fontSwitcher.value
+  const inDropdown = e.target.closest('.font-dropdown')
+  if (el && !el.contains(e.target) && !inDropdown) fontOpen.value = false
+}
+
 // 时钟
 const updateClock = () => {
   const now = new Date()
@@ -301,6 +381,7 @@ onMounted(() => {
   document.addEventListener('keydown', onKeydown)
   document.addEventListener('click', onDocClick)
   document.addEventListener('click', onStationDocClick)
+  document.addEventListener('click', onFontDocClick)
   // 站点切换器依赖站点列表：登录后未加载则拉取（默认只有进系统配置页才拉）
   if (!store.stations.length) store.fetchStations()
   // 区县列表：市级超管按区县分组展示
@@ -311,6 +392,7 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onKeydown)
   document.removeEventListener('click', onDocClick)
   document.removeEventListener('click', onStationDocClick)
+  document.removeEventListener('click', onFontDocClick)
 })
 </script>
 
@@ -709,5 +791,112 @@ onUnmounted(() => {
   border: 1px solid $border-base;
   border-radius: $radius-base;
   white-space: nowrap;
+}
+
+// ===== 字体大小切换 =====
+.font-switcher {
+  position: relative;
+}
+
+.font-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  background: $bg-page;
+  border: 1px solid $border-base;
+  border-radius: $radius-md;
+  color: $text-primary;
+  cursor: pointer;
+  font-family: $font-body;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all $duration-fast $ease-out;
+
+  &:hover {
+    background: $bg-card;
+    border-color: $border-strong;
+  }
+
+  &.open {
+    border-color: $accent;
+    box-shadow: 0 0 0 3px $accent-soft;
+  }
+}
+
+.font-trigger-icon {
+  font-size: 13px;
+  font-weight: 700;
+  color: $accent;
+  letter-spacing: 1px;
+}
+
+.font-trigger-label {
+  color: $text-secondary;
+}
+
+.font-caret {
+  width: 13px;
+  height: 13px;
+  color: $text-muted;
+  flex-shrink: 0;
+  transition: transform $duration-fast $ease-out;
+
+  &.open { transform: rotate(180deg); }
+}
+
+.font-dropdown {
+  position: fixed;
+  z-index: 200;
+  background: $bg-card;
+  border: 1px solid $border-base;
+  border-radius: $radius-md;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.16), 0 2px 8px rgba(15, 23, 42, 0.08);
+  padding: 6px;
+}
+
+.font-dropdown-title {
+  padding: 6px 10px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: $ls-wider;
+  text-transform: uppercase;
+  color: $text-muted;
+}
+
+.font-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: $radius-base;
+  font-family: $font-body;
+  color: $text-primary;
+  cursor: pointer;
+  text-align: left;
+  transition: background $duration-fast $ease-out;
+
+  &:hover { background: $bg-hover; }
+
+  &.active {
+    background: $primary-soft;
+    color: $primary;
+    font-weight: 600;
+  }
+}
+
+.font-option-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.font-option-check {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: $primary;
 }
 </style>

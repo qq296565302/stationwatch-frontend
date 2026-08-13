@@ -159,6 +159,8 @@ export const useAppStore = defineStore('app', {
 
     // UI 状态
     sidebarCollapsed: false,
+    // 全局字体缩放：1 默认 / 1.5 大 / 2 巨大（持久化，刷新保持）
+    fontScale: Number(localStorage.getItem('dutyguard_font_scale')) || 1,
     currentTime: getCurrentTime()
   }),
 
@@ -886,6 +888,12 @@ export const useAppStore = defineStore('app', {
     // ============ UI ============
     toggleSidebar() {
       this.sidebarCollapsed = !this.sidebarCollapsed
+    },
+
+    // 设置全局字体缩放（1 / 1.5 / 2），并持久化到 localStorage
+    setFontScale(scale) {
+      this.fontScale = scale
+      localStorage.setItem('dutyguard_font_scale', String(scale))
     },
 
     updateTime() {

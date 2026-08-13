@@ -152,6 +152,30 @@
               </div>
               <div class="timeline-content">
                 <div class="timeline-text">{{ item.content }}</div>
+                <!-- 工单关键信息直显，值班员无需点开即可查看 -->
+                <div v-if="item.businessType || item.customerName || item.customerPhone || item.handler" class="timeline-info">
+                  <span v-if="item.businessType" class="info-chip">
+                    <span class="info-chip-label">业务类型</span>
+                    <span class="info-chip-value">{{ item.businessType }}</span>
+                  </span>
+                  <span v-if="item.customerName" class="info-chip">
+                    <span class="info-chip-label">客户名称</span>
+                    <span class="info-chip-value">{{ item.customerName }}</span>
+                  </span>
+                  <span v-if="item.customerPhone" class="info-chip">
+                    <span class="info-chip-label">联系电话</span>
+                    <span class="info-chip-value font-mono">{{ item.customerPhone }}</span>
+                  </span>
+                  <span v-if="item.handler" class="info-chip">
+                    <span class="info-chip-label">办理人员</span>
+                    <span class="info-chip-value">{{ item.handler }}</span>
+                  </span>
+                </div>
+                <!-- 已完成工单：展示处理结果 -->
+                <div v-if="item.isCompleted && item.result" class="timeline-result">
+                  <span class="timeline-result-label">处理结果</span>
+                  <span class="timeline-result-value">{{ item.result }}</span>
+                </div>
                 <div class="timeline-meta" @click.stop>
                   <div class="time-block">
                     <span class="time-block-label font-mono">受理</span>
@@ -1004,6 +1028,78 @@ watch(() => route.params.id, (id) => { if (id) loadDetail() })
 
 .timeline-item.done .timeline-text {
   color: $text-secondary;
+}
+
+// ===== 工单关键信息直显（业务类型 / 客户名称 / 联系电话 / 办理人员）=====
+.timeline-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-2;
+  margin-bottom: $space-2;
+}
+
+.info-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px $space-3;
+  background: $bg-elevated;
+  border: 1px solid $border-subtle;
+  border-radius: $radius-sm;
+  font-size: $fs-sm;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.info-chip-label {
+  font-family: $font-mono;
+  font-size: 11px;
+  letter-spacing: $ls-wider;
+  text-transform: uppercase;
+  color: $text-muted;
+  flex-shrink: 0;
+}
+
+.info-chip-value {
+  color: $text-primary;
+  font-weight: $fw-medium;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-item.done .info-chip-value {
+  color: $text-secondary;
+}
+
+// ===== 已完成工单：处理结果直显 =====
+.timeline-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: $space-2 $space-3;
+  margin-bottom: $space-2;
+  background: $ok-soft;
+  border: 1px solid $ok-border;
+  border-radius: $radius-sm;
+  font-size: $fs-sm;
+}
+
+.timeline-result-label {
+  font-family: $font-mono;
+  font-size: 11px;
+  letter-spacing: $ls-wider;
+  text-transform: uppercase;
+  color: $text-muted;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.timeline-result-value {
+  color: $text-primary;
+  font-weight: $fw-medium;
+  line-height: $lh-base;
+  word-break: break-word;
 }
 
 .timeline-meta {

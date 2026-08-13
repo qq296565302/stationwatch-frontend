@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-view">
+  <div class="dashboard-view" :class="{ 'font-large': store.fontScale >= 1.5 }">
     <!-- 欢迎条 -->
     <div class="welcome">
       <div class="welcome-text">
@@ -614,6 +614,20 @@ onMounted(() => {
 
 @media (max-width: 1100px) {
   .main-grid, .charts-row { grid-template-columns: 1fr; }
+}
+
+// 字体放大（1.5 倍及以上）：左右布局改为单行堆叠，避免图表被压缩显示异常
+.dashboard-view.font-large {
+  .main-grid,
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+
+  // 业务类型分布：环形图与图例并排，空间充足时保持横向；单列下居中
+  .donut-wrap { justify-content: center; }
+
+  // 响应时长：四个指标在大字体下单列时保持两行两列，避免过度纵向堆叠
+  .response-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 720px) {
   .stats-row { grid-template-columns: repeat(2, 1fr); }
