@@ -235,9 +235,9 @@ export const useAppStore = defineStore('app', {
       return total === 0 ? 0 : Math.round((done / total) * 100)
     },
 
-    // 当前站点工单时限（分钟），站点级配置，缺省 45
+    // 当前站点工单时限（分钟），站点级配置，缺省 60
     currentStationOrderTimeLimit(state) {
-      return state.stations.find(s => s.id === state.currentStationId)?.orderTimeLimit ?? 45
+      return state.stations.find(s => s.id === state.currentStationId)?.orderTimeLimit ?? 60
     },
 
     // ===== 聚合统计 =====
@@ -334,7 +334,7 @@ export const useAppStore = defineStore('app', {
       const p90 = sorted.length ? sorted[Math.floor(sorted.length * 0.9)] : 0
       // 超时工单（按工单时限判定，统一口径见 utils/orderTimeout.js）：
       //   未完成且从受理起超过时限，或已完成但处理耗时超过时限
-      const limit = state.stations.find(s => s.id === state.currentStationId)?.orderTimeLimit ?? 45
+      const limit = state.stations.find(s => s.id === state.currentStationId)?.orderTimeLimit ?? 60
       let overdue = 0
       allItems.forEach(item => {
         const st = getItemTimeoutState(item, item._recordDate, limit)

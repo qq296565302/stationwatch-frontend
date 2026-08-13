@@ -345,6 +345,10 @@
                 <span class="field-name">办理人员</span>
                 <span class="field-value">{{ detailItem.handler || '—' }}</span>
               </div>
+              <div class="field-row">
+                <span class="field-name">完成时间</span>
+                <span class="field-value font-mono">{{ detailItem.endTime || '—' }}</span>
+              </div>
               <div class="field-row field-row-full">
                 <span class="field-name">处理结果</span>
                 <ComboboxInput
@@ -498,7 +502,8 @@ const calcDuration = (start, end) => {
   const [sh, sm] = start.split(':').map(Number)
   const [eh, em] = end.split(':').map(Number)
   if (Number.isNaN(sh) || Number.isNaN(eh)) return '0 分钟'
-  const mins = (eh * 60 + em) - (sh * 60 + sm)
+  let mins = (eh * 60 + em) - (sh * 60 + sm)
+  if (mins < 0) mins += 1440 // 完成时间早于受理时间：视为次日的同一时刻（跨天），如 23:00 → 01:00 = 2 小时
   if (mins < 60) return `${mins} 分钟`
   const h = Math.floor(mins / 60)
   const m = mins % 60

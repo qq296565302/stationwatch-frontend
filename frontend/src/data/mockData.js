@@ -23,7 +23,7 @@ export const systemConfig = {
   voltage: '10kV',
   feeders: 24,
   transformers: 86,
-  orderTimeLimit: 45
+  orderTimeLimit: 60
 }
 
 // ---- 天气选项 ----

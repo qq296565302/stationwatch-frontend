@@ -39,7 +39,7 @@ export const getNowHM = () => {
  */
 export function getItemTimeoutState(item, recordDate, limitMinutes) {
   if (!item || !item.content) return null
-  const limit = Number(limitMinutes) || 45
+  const limit = Number(limitMinutes) || 60
 
   // 受理时间晚于当前时刻（当天记录误填未来时间）：视为尚未到期，绝不判超时
   // 注：真正的跨天（昨晚 23:50 受理、现在 00:10）记录日期是昨天，会走下方完整时间戳分支；

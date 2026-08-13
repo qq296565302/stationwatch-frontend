@@ -252,7 +252,7 @@
             <div class="rule-row">
               <div class="rule-info">
                 <div class="rule-label">工单时限</div>
-                <div class="rule-desc">未完成工单超过此时限判定为超时，临近超时将自动提醒（默认 45 分钟）</div>
+                <div class="rule-desc">未完成工单超过此时限判定为超时，临近超时将自动提醒（默认 60 分钟）</div>
               </div>
               <div class="rule-control">
                 <input v-model.number="rulesForm.orderTimeLimit" type="number" class="rule-input font-mono" min="5" max="1440" />
@@ -499,7 +499,7 @@ const selectStation = (e) => {
 
 // ---- 值班规则 ----
 const rulesForm = reactive({
-  orderTimeLimit: 45,
+  orderTimeLimit: 60,
   allowEditHistory: false,
   autoStartTime: true,
   pendingNotify: true,
@@ -510,7 +510,7 @@ const savingRules = ref(false)
 const loadRulesForm = () => {
   const map = store.systemConfigMap
   const st = store.stations.find(s => s.id === store.currentStationId)
-  rulesForm.orderTimeLimit = Number(st?.orderTimeLimit ?? 45)
+  rulesForm.orderTimeLimit = Number(st?.orderTimeLimit ?? 60)
   rulesForm.allowEditHistory = map['duty.allow_edit_history'] === true
   rulesForm.autoStartTime = map['duty.auto_start_time'] !== false
   rulesForm.pendingNotify = map['duty.pending_notify'] !== false
@@ -520,7 +520,7 @@ const loadRulesForm = () => {
 const saveRules = async () => {
   savingRules.value = true
   try {
-    const limit = Math.max(5, Math.min(1440, Number(rulesForm.orderTimeLimit) || 45))
+    const limit = Math.max(5, Math.min(1440, Number(rulesForm.orderTimeLimit) || 60))
     const interval = Math.max(5, Math.min(1440, Number(rulesForm.pendingNotifyInterval) || 30))
     rulesForm.orderTimeLimit = limit
     rulesForm.pendingNotifyInterval = interval

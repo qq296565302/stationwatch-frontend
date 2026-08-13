@@ -1,5 +1,5 @@
 <template>
-  <div class="time-picker" :class="{ open: isOpen }">
+  <div ref="rootEl" class="time-picker" :class="{ open: isOpen }">
     <button
       type="button"
       class="time-trigger"
@@ -16,8 +16,10 @@
       </span>
     </button>
 
+    <!-- 面板 Teleport 到 body + fixed 定位，避免被工单卡片等 overflow 容器裁剪 -->
+    <Teleport to="body">
     <transition name="dropdown">
-      <div v-show="isOpen" class="time-panel" @mousedown.prevent>
+      <div v-show="isOpen" class="time-panel" :style="panelStyle" @mousedown.stop.prevent>
         <div class="panel-header">
           <span class="panel-title">选择时间</span>
           <button v-if="modelValue" type="button" class="panel-clear" @click="clear">清除</button>
@@ -73,6 +75,7 @@
         </div>
       </div>
     </transition>
+    </Teleport>
   </div>
 </template>
 
@@ -89,6 +92,11 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'blur'])
 
 const isOpen = ref(false)
+const rootEl = ref(null)
+const panelStyle = ref({})
+
+// 面板大致高度（时/分两列），用于判断向上还是向下展开
+const PANEL_HEIGHT = 392
 
 // 打开面板时取一次当前时间作为选择上限（limitToNow 开启时生效）
 const nowHour = ref(23)
@@ -125,9 +133,37 @@ const isMinuteDisabled = (m) =>
   (hour.value === null || hour.value > nowHour.value ||
     (hour.value === nowHour.value && m > nowMinute.value))
 
+// fixed 定位：相对于触发器计算，下方空间不足时向上展开，始终完整显示在视口内
+const positionPanel = () => {
+  if (!rootEl.value) return
+  const rect = rootEl.value.getBoundingClientRect()
+  const fitsBelow = rect.bottom + 4 + PANEL_HEIGHT <= window.innerHeight
+  panelStyle.value = {
+    position: 'fixed',
+    top: fitsBelow ? `${rect.bottom + 4}px` : 'auto',
+    bottom: fitsBelow ? 'auto' : `${Math.max(8, window.innerHeight - rect.top + 4)}px`,
+    left: `${Math.max(8, Math.min(rect.left, window.innerWidth - 280 - 8))}px`,
+    zIndex: 9999
+  }
+}
+const bindPanelPosition = () => {
+  window.addEventListener('scroll', positionPanel, true)
+  window.addEventListener('resize', positionPanel)
+}
+const unbindPanelPosition = () => {
+  window.removeEventListener('scroll', positionPanel, true)
+  window.removeEventListener('resize', positionPanel)
+}
+
 const toggleOpen = () => {
   if (!isOpen.value && props.limitToNow) refreshNow()
   isOpen.value = !isOpen.value
+  if (isOpen.value) {
+    positionPanel()
+    bindPanelPosition()
+  } else {
+    unbindPanelPosition()
+  }
 }
 
 const pickHour = (h) => {
@@ -154,15 +190,18 @@ const clear = () => {
   isOpen.value = false
 }
 
-// 点击外部关闭
+// 点击外部关闭（面板已 Teleport 到 body，需同时排除 .time-panel）
 const onDocClick = (e) => {
-  if (!e.target.closest('.time-picker')) {
+  if (!e.target.closest('.time-picker') && !e.target.closest('.time-panel')) {
     isOpen.value = false
   }
 }
 
 onMounted(() => document.addEventListener('mousedown', onDocClick))
-onBeforeUnmount(() => document.removeEventListener('mousedown', onDocClick))
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', onDocClick)
+  unbindPanelPosition()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -214,12 +253,8 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocClick))
 
 .open .time-icon { color: $accent; }
 
-// ---- 弹层 ----
+// ---- 弹层（Teleport 到 body，位置由 JS fixed 计算） ----
 .time-panel {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: $z-overlay;
   background: $bg-elevated;
   border: 1px solid $border-base;
   border-radius: 8px;

@@ -135,6 +135,11 @@
                   placeholder="选择或输入处理结果..."
                 />
               </div>
+              <div class="field">
+                <label class="field-label">完成时间</label>
+                <TimePicker v-model="item.endTime" :limit-to-now="acceptTimeLimitToNow" />
+                <span class="field-hint">选择处理结果后自动填入当前时间，可点击修改</span>
+              </div>
             </div>
 
             <div class="item-actions">
