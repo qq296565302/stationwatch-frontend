@@ -1,15 +1,52 @@
 <template>
   <div class="create-record-view">
-    <PageHeader
-      :title="isEdit ? '编辑值班记录' : '新建值班记录'"
-      :subtitle="isEdit ? '修改并保存当前的值班记录' : '按步骤填写值班信息'"
-    >
-      <template #actions>
+    <!-- 合并顶栏：标题 + 状态 + 返回/保存按钮，固定在页面上方 -->
+    <div class="record-toolbar">
+      <div class="toolbar-main">
+        <div class="toolbar-title">
+          <h1 class="toolbar-title-text">{{ isEdit ? '编辑值班记录' : '新建值班记录' }}</h1>
+          <p class="toolbar-subtitle">{{ isEdit ? '修改并保存当前的值班记录' : '按步骤填写值班信息' }}</p>
+        </div>
+        <div class="toolbar-status">
+          <template v-if="!isEdit">
+            <span class="toolbar-status-item">第 {{ currentStep + 1 }} / {{ steps.length }} 步</span>
+            <span v-if="formDirty" class="toolbar-dirty">· 有未保存修改</span>
+            <span v-if="currentStep === 1" class="toolbar-summary">· {{ completedCount }} / {{ validItemCount }} 工单已完成</span>
+          </template>
+          <template v-else>
+            <span class="toolbar-status-item">编辑模式</span>
+            <span v-if="formDirty" class="toolbar-dirty">· 有未保存修改</span>
+            <span class="toolbar-summary">· {{ validItemCount }} 条工单 · 已完成 {{ completedCount }}</span>
+          </template>
+        </div>
+      </div>
+      <div class="toolbar-actions">
         <button class="btn btn-ghost" @click="handleCancel">
           返回列表
         </button>
-      </template>
-    </PageHeader>
+        <template v-if="!isEdit">
+          <button v-if="currentStep > 0" class="btn btn-secondary" @click="prevStep">上一步</button>
+          <button
+            v-if="currentStep < steps.length - 1"
+            class="btn btn-primary"
+            :disabled="!canGoNext"
+            @click="nextStep"
+          >
+            下一步
+          </button>
+          <button
+            v-if="currentStep === steps.length - 1"
+            class="btn btn-primary"
+            @click="handleSubmit"
+          >
+            提交记录
+          </button>
+        </template>
+        <button v-else class="btn btn-primary" :disabled="isLocked" @click="handleSubmit">
+          {{ isLocked ? '已锁定' : '保存修改' }}
+        </button>
+      </div>
+    </div>
 
     <!-- 新建模式：分步指示器 -->
     <StepIndicator v-if="!isEdit" :current-step="currentStep" :steps="steps" />
@@ -290,47 +327,6 @@
         </transition>
       </div>
     </div>
-
-    <!-- ============ 底部操作栏 ============ -->
-    <div class="form-footer">
-      <div class="footer-left">
-        <template v-if="!isEdit">
-          <span class="footer-status">第 {{ currentStep + 1 }} / {{ steps.length }} 步</span>
-          <span v-if="formDirty" class="footer-dirty">· 有未保存修改</span>
-          <span v-if="currentStep === 1" class="footer-summary">
-            · {{ completedCount }} / {{ validItemCount }} 工单已完成
-          </span>
-        </template>
-        <template v-else>
-          <span class="footer-status">编辑模式</span>
-          <span v-if="formDirty" class="footer-dirty">· 有未保存修改</span>
-          <span class="footer-summary">
-            · {{ validItemCount }} 条工单 · 已完成 {{ completedCount }}
-          </span>
-        </template>
-      </div>
-      <div class="footer-right">
-        <button v-if="!isEdit && currentStep > 0" class="btn btn-secondary" @click="prevStep">上一步</button>
-        <button
-          v-if="!isEdit && currentStep < steps.length - 1"
-          class="btn btn-primary"
-          :disabled="!canGoNext"
-          @click="nextStep"
-        >
-          下一步
-        </button>
-        <button
-          v-if="!isEdit && currentStep === steps.length - 1"
-          class="btn btn-primary"
-          @click="handleSubmit"
-        >
-          提交记录
-        </button>
-        <button v-if="isEdit" class="btn btn-primary" :disabled="isLocked" @click="handleSubmit">
-          {{ isLocked ? '已锁定' : '保存修改' }}
-        </button>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -338,7 +334,6 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/store'
-import PageHeader from '@/components/PageHeader.vue'
 import StepIndicator from '@/components/StepIndicator.vue'
 import DutyItemsEditor from '@/components/DutyItemsEditor.vue'
 import { useToast } from '@/composables/useToast'
@@ -899,34 +894,67 @@ const getWeatherLabel = (key) => {
 .card-collapse-enter-to,
 .card-collapse-leave-from { opacity: 1; max-height: 4000px; }
 
-// ===== 底部操作栏 =====
-.form-footer {
+// ===== 合并顶栏（sticky 固定在页面上方，随时可返回/保存） =====
+.record-toolbar {
+  position: sticky;
+  top: -24px; // 取负值抵消 .layout-content 的 padding-top，使工具栏贴住滚动视口顶，内容不会从工具栏上方漏出
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  margin-top: 16px;
-  background: $bg-card;
-  border: 1px solid $border-base;
-  border-radius: 8px;
+  gap: 16px;
+  margin: -24px -40px 20px; // 抵消 .layout-content 的 padding，使工具栏铺满页面顶部并 sticky
+  padding: 12px 40px;
+  background: $bg-page; // 实色背景，滚动内容被完全遮挡在工具栏之下
+  border-bottom: 1px solid $border-base;
+
+  @media (min-width: 1440px) { top: -28px; margin: -28px -56px 20px; padding: 12px 56px; }
+  @media (max-width: 1280px) { top: -20px; margin: -20px -28px 20px; padding: 12px 28px; }
+  @media (max-width: 960px) { top: -16px; margin: -16px -20px 20px; padding: 12px 20px; }
+  @media (max-width: 640px) { top: -12px; margin: -12px -14px 20px; padding: 12px 14px; }
 }
 
-.footer-left {
+.toolbar-main {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+
+.toolbar-title { flex-shrink: 0; }
+
+.toolbar-title-text {
+  font-size: $fs-lg;
+  font-weight: $fw-semibold;
+  color: $text-primary;
+  letter-spacing: $ls-tight;
+  line-height: $lh-tight;
+}
+
+.toolbar-subtitle {
+  margin-top: 2px;
+  font-size: $fs-sm;
+  color: $text-muted;
+}
+
+.toolbar-status {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 12px;
   color: $text-muted;
+  white-space: nowrap;
 }
 
-.footer-status { color: $text-secondary; }
-.footer-dirty { color: $warn; }
-.footer-summary { color: $text-secondary; }
+.toolbar-status-item { color: $text-secondary; }
+.toolbar-dirty { color: $warn; }
+.toolbar-summary { color: $text-secondary; }
 
-.footer-right {
+.toolbar-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 // ===== 切换动画 =====

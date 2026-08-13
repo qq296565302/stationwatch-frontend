@@ -79,6 +79,8 @@ const isFocused = ref(false)
 const activeIndex = ref(0)
 const rootEl = ref(null)
 const dropdownStyle = ref({})
+// 是否正在手动输入：仅输入过程中按关键字过滤，选中/聚焦/清空后再次打开下拉显示全部选项
+const userTyping = ref(false)
 
 // Teleport 定位：下拉 fixed 渲染在 input 下方，避免被父容器 overflow 裁剪
 const positionDropdown = () => {
@@ -109,9 +111,10 @@ watch(() => props.modelValue, (v) => {
 })
 
 // 过滤 + 排序：开头匹配 > 包含匹配；标记精确匹配项
+// 仅当用户正在手动输入时才按输入内容过滤，避免选中后打开下拉只剩当前项
 const filteredOptions = computed(() => {
   const q = inputValue.value.trim().toLowerCase()
-  if (!q) {
+  if (!userTyping.value || !q) {
     return props.options.map(o => ({ label: o, value: o, isExact: false }))
   }
   const starts = []
@@ -131,6 +134,7 @@ const filteredOptions = computed(() => {
 })
 
 const onInput = () => {
+  userTyping.value = true
   activeIndex.value = 0
   openDropdown()
   emit('update:modelValue', inputValue.value)
@@ -138,6 +142,7 @@ const onInput = () => {
 
 const onFocus = () => {
   isFocused.value = true
+  userTyping.value = false // 聚焦（未输入）时显示全部选项，允许重新选择
   activeIndex.value = 0
   openDropdown()
 }
@@ -165,6 +170,7 @@ const onEnter = () => {
   if (list.length > 0 && list[activeIndex.value]) {
     selectOption(list[activeIndex.value])
   } else if (props.allowCreate && inputValue.value.trim()) {
+    userTyping.value = false
     commitValue(inputValue.value.trim())
     isOpen.value = false
   }
@@ -180,6 +186,7 @@ const onTab = () => {
 }
 
 const selectOption = (opt) => {
+  userTyping.value = false
   inputValue.value = opt.value
   commitValue(opt.value)
   closeDropdown()
@@ -191,6 +198,7 @@ const commitValue = (v) => {
 }
 
 const clear = () => {
+  userTyping.value = false
   inputValue.value = ''
   emit('update:modelValue', '')
   closeDropdown()
