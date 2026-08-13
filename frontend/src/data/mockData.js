@@ -23,7 +23,6 @@ export const systemConfig = {
   voltage: '10kV',
   feeders: 24,
   transformers: 86,
-  maxDutyItemsPerRecord: 11,
   orderTimeLimit: 45
 }
 

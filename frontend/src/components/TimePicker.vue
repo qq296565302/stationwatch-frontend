@@ -106,7 +106,7 @@ const minute = computed(() => {
 })
 
 const hours = Array.from({ length: 24 }, (_, i) => i)
-const minutes = Array.from({ length: 12 }, (_, i) => i * 5)
+const minutes = Array.from({ length: 60 }, (_, i) => i)
 
 const pad = (n) => String(n).padStart(2, '0')
 
@@ -144,8 +144,7 @@ const pickMinute = (m) => {
 const setNow = () => {
   const d = new Date()
   const h = d.getHours()
-  // 分钟向下对齐到 5 分钟一档
-  const m = Math.floor(d.getMinutes() / 5) * 5
+  const m = d.getMinutes()
   emit('update:modelValue', `${pad(h)}:${pad(m)}`)
   isOpen.value = false
 }
@@ -287,7 +286,8 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocClick))
 }
 
 .hours-grid { grid-template-columns: repeat(4, 1fr); }
-.minutes-grid { grid-template-columns: repeat(3, 1fr); }
+.minutes-grid { grid-template-columns: repeat(6, 1fr); max-height: 248px; }
+.minutes-grid .cell { padding: 4px 0; font-size: 11px; }
 
 .cell {
   padding: 6px 0;

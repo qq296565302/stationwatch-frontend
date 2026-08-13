@@ -179,7 +179,7 @@
     </div>
 
     <button
-      v-if="items.length < 11"
+      v-if="items.length < MAX_ITEMS"
       class="add-btn"
       @click="addItem"
     >
@@ -193,6 +193,9 @@
 </template>
 
 <script setup>
+// 隐藏上限：日常填报无限制，仅作为防止极端情况的隐式安全阀
+const MAX_ITEMS = 1000
+
 import { ref, watch, computed } from 'vue'
 import ComboboxInput from '@/components/ComboboxInput.vue'
 import TimePicker from '@/components/TimePicker.vue'
@@ -252,7 +255,10 @@ watch(() => items.value.length, (newLen, oldLen) => {
 
 // ---- 增删 ----
 const addItem = () => {
-  if (items.value.length >= 11) return
+  if (items.value.length >= MAX_ITEMS) {
+    toast.error(`已达单条记录工单数上限 ${MAX_ITEMS} 条`, '提示')
+    return
+  }
   const next = [...items.value, {
     id: Date.now(),
     acceptTime: getCurrentTime(),

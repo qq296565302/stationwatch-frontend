@@ -100,7 +100,7 @@
                 <p class="step-desc">添加客户报修/业务工单，每条工单独立记录处理过程</p>
               </div>
               <div class="step-counter font-mono">
-                {{ formData.dutyItems.length }} / 11
+                {{ formData.dutyItems.length }} 条
               </div>
             </div>
 

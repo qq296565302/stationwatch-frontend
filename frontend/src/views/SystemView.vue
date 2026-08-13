@@ -223,7 +223,7 @@
             <p class="section-desc">配置值班记录的相关业务规则</p>
           </div>
           <div class="section-action">
-            <!-- 值班规则含站点级配置（每班最大事项数/工单时限），由可管理站点的角色（admin/区县管理员）保存，所长无此权限 -->
+            <!-- 值班规则含站点级配置（工单时限），由可管理站点的角色（admin/区县管理员）保存，所长无此权限 -->
             <button class="btn btn-primary btn-sm" :disabled="savingRules" @click="saveRules">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
@@ -236,16 +236,6 @@
         </div>
         <div class="section-body">
           <div class="rule-list">
-            <div class="rule-row">
-              <div class="rule-info">
-                <div class="rule-label">每班最大事项数</div>
-                <div class="rule-desc">单次值班记录中可填写的最多事项数量</div>
-              </div>
-              <div class="rule-control">
-                <input v-model.number="rulesForm.maxItemsPerRecord" type="number" class="rule-input font-mono" min="1" max="20" />
-                <span class="rule-unit">条</span>
-              </div>
-            </div>
             <div class="rule-row">
               <div class="rule-info">
                 <div class="rule-label">工单时限</div>
@@ -477,7 +467,6 @@ const selectStation = (e) => {
 
 // ---- 值班规则 ----
 const rulesForm = reactive({
-  maxItemsPerRecord: 11,
   orderTimeLimit: 45,
   allowEditHistory: false,
   autoStartTime: true,
@@ -488,9 +477,7 @@ const savingRules = ref(false)
 
 const loadRulesForm = () => {
   const map = store.systemConfigMap
-  // 每班最大事项数优先取站点级配置（后端实际读取该值）
   const st = store.stations.find(s => s.id === store.currentStationId)
-  rulesForm.maxItemsPerRecord = Number(st?.maxDutyItemsPerRecord ?? map['duty.max_items_per_record'] ?? 11)
   rulesForm.orderTimeLimit = Number(st?.orderTimeLimit ?? 45)
   rulesForm.allowEditHistory = map['duty.allow_edit_history'] === true
   rulesForm.autoStartTime = map['duty.auto_start_time'] !== false
@@ -501,33 +488,29 @@ const loadRulesForm = () => {
 const saveRules = async () => {
   savingRules.value = true
   try {
-    const max = Math.max(1, Math.min(20, Number(rulesForm.maxItemsPerRecord) || 11))
     const limit = Math.max(5, Math.min(1440, Number(rulesForm.orderTimeLimit) || 45))
     const interval = Math.max(5, Math.min(1440, Number(rulesForm.pendingNotifyInterval) || 30))
-    rulesForm.maxItemsPerRecord = max
     rulesForm.orderTimeLimit = limit
     rulesForm.pendingNotifyInterval = interval
     if (!store.isAdmin) {
-      // 所长：仅保存本所站点级规则（每班最大事项数 / 工单时限），全局开关不开放
+      // 所长：仅保存本所站点级规则（工单时限），全局开关不开放
       if (!stationForm.id) throw new Error('未找到站点信息')
-      await store.updateStation(stationForm.id, { maxDutyItemsPerRecord: max, orderTimeLimit: limit })
+      await store.updateStation(stationForm.id, { orderTimeLimit: limit })
     } else {
       const jobs = [
         store.updateSystemConfig({
-          'duty.max_items_per_record': max,
           'duty.allow_edit_history': !!rulesForm.allowEditHistory,
           'duty.auto_start_time': !!rulesForm.autoStartTime,
           'duty.pending_notify': !!rulesForm.pendingNotify,
           'duty.pending_notify_interval': interval
         })
       ]
-      // 同步站点字段（后端工单上限/工单时限实际读取站点配置）
+      // 同步站点字段（后端工单时限实际读取站点配置）
       if (stationForm.id) {
-        jobs.push(store.updateStation(stationForm.id, { maxDutyItemsPerRecord: max, orderTimeLimit: limit }))
+        jobs.push(store.updateStation(stationForm.id, { orderTimeLimit: limit }))
       }
       await Promise.all(jobs)
       Object.assign(store.systemConfigMap, {
-        'duty.max_items_per_record': max,
         'duty.allow_edit_history': !!rulesForm.allowEditHistory,
         'duty.auto_start_time': !!rulesForm.autoStartTime,
         'duty.pending_notify': !!rulesForm.pendingNotify,
