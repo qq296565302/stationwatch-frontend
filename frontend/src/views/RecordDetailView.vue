@@ -38,17 +38,6 @@
           </svg>
           编辑
         </button>
-        <button
-          v-if="record.status === 'active' && record.completedCount === record.itemCount && store.canLock"
-          class="btn btn-amber"
-          @click="handleLock"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-          </svg>
-          锁定记录
-        </button>
       </template>
     </PageHeader>
 
@@ -151,7 +140,9 @@
               :key="item.id"
               class="timeline-item"
               :class="{ done: item.isCompleted, clickable: true }"
-              @click="openItemDetail(item, idx)"
+              title="单击查看详情，双击直接编辑"
+              @click="openItemDetailDebounced(item, idx)"
+              @dblclick="goEditFromItem(item, idx)"
             >
               <div class="timeline-marker">
                 <svg v-if="item.isCompleted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
@@ -274,15 +265,6 @@
                   <strong>{{ record.creator }}</strong> 创建了值班记录
                 </span>
                 <span class="log-time font-mono">{{ formatDateTime(record.createdAt) }}</span>
-              </div>
-            </div>
-            <div v-if="record.lockedAt" class="log-item">
-              <i class="led led-warn"></i>
-              <div class="log-content">
-                <span class="log-text">
-                  <strong>{{ record.creator }}</strong> 锁定了值班记录
-                </span>
-                <span class="log-time font-mono">{{ formatDateTime(record.lockedAt) }}</span>
               </div>
             </div>
             <div v-for="item in record.dutyItems.filter(i => i.isCompleted)" :key="`log-${item.id}`" class="log-item">
@@ -523,22 +505,6 @@ const calcDuration = (start, end) => {
   return m === 0 ? `${h} 小时` : `${h}小时 ${m}分`
 }
 
-const handleLock = async () => {
-  const ok = await confirm.open({
-    title: '锁定记录',
-    message: `确认锁定 ${record.value.recordDate} 的值班记录？锁定后无法再修改。`,
-    confirmText: '锁定',
-    type: 'danger'
-  })
-  if (!ok) return
-  try {
-    await store.lockRecord(record.value.id)
-    toast.success('记录已锁定')
-  } catch (e) {
-    toast.error(e.message || '锁定失败')
-  }
-}
-
 // 是否存在未解决的遗留问题（区块 tag 切换：需跟进 / 已全部解决）
 const hasUnresolved = computed(() => {
   const list = record.value?.pendingIssues || []
@@ -610,6 +576,8 @@ const handleCompleteItem = async (item) => {
 const detailItem = ref(null)
 const detailIndex = ref(0)
 
+let itemClickTimer = null
+
 const openItemDetail = (item, idx) => {
   detailItem.value = item
   detailIndex.value = idx
@@ -617,6 +585,23 @@ const openItemDetail = (item, idx) => {
 
 const closeItemDetail = () => {
   detailItem.value = null
+}
+
+// 单击打开抽屉（延时防抖，避免双击时抽屉闪现）
+const openItemDetailDebounced = (item, idx) => {
+  clearTimeout(itemClickTimer)
+  itemClickTimer = setTimeout(() => openItemDetail(item, idx), 260)
+}
+
+// 双击直接打开编辑页；无编辑权限（如锁定记录的非超管）退回单击行为——打开详情抽屉
+const goEditFromItem = (item, idx) => {
+  clearTimeout(itemClickTimer)
+  if (!record.value) return
+  if (!store.canEditRecordFor(record.value)) {
+    openItemDetail(item, idx)
+    return
+  }
+  router.push(`/records/${record.value.id}/edit`)
 }
 
 const goEditFromDrawer = () => {

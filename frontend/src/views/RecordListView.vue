@@ -174,17 +174,6 @@
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
               </button>
-              <button
-                v-if="record.status === 'active' && record.completedCount === record.itemCount && store.canLock"
-                class="btn btn-icon"
-                title="锁定"
-                @click="handleLock(record)"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-              </button>
             </td>
           </tr>
         </tbody>
@@ -249,11 +238,9 @@ import { useAppStore } from '@/store'
 import PageHeader from '@/components/PageHeader.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { useToast } from '@/composables/useToast'
-import { useConfirm } from '@/composables/useConfirm'
 import { getCurrentDateISO } from '@/data/mockData'
 const store = useAppStore()
 const toast = useToast()
-const confirm = useConfirm()
 
 // 值班记录生命周期状态（当天=进行中，前一天=即将锁定）统一走 store getter
 const displayStatus = (record) => store.recordDisplayStatus(record)
@@ -304,22 +291,6 @@ const filteredRecords = computed(() => {
 
 const resetFilters = () => {
   Object.keys(filters).forEach(k => filters[k] = '')
-}
-
-const handleLock = async (record) => {
-  const ok = await confirm.open({
-    title: '锁定记录',
-    message: `确认锁定 ${record.recordDate} 的值班记录？锁定后无法再修改。`,
-    confirmText: '锁定',
-    type: 'danger'
-  })
-  if (!ok) return
-  try {
-    await store.lockRecord(record.id)
-    toast.success('记录已锁定')
-  } catch (e) {
-    toast.error(e.message || '锁定失败')
-  }
 }
 
 // 数据加载：进入页面时拉取最近 30 天记录

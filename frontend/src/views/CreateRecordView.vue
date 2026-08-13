@@ -120,7 +120,7 @@
                 <textarea
                   v-model="formData.otherMatters"
                   class="field-textarea"
-                  rows="5"
+                  rows="2"
                   placeholder="例如：参加安全会议、培训学习、设备异动..."
                 ></textarea>
                 <span class="field-hint">{{ formData.otherMatters.length }} 字</span>
@@ -131,7 +131,7 @@
                 <textarea
                   v-model="formData.pendingIssues"
                   class="field-textarea"
-                  rows="5"
+                  rows="2"
                   placeholder="待处理问题，后续跟进..."
                 ></textarea>
                 <span class="field-hint">{{ formData.pendingIssues.length }} 字 · 将在下个班次优先展示</span>
@@ -269,7 +269,7 @@
                 <textarea
                   v-model="formData.otherMatters"
                   class="field-textarea"
-                  rows="5"
+                  rows="2"
                   placeholder="例如：参加安全会议、培训学习、设备异动..."
                 ></textarea>
                 <span class="field-hint">{{ formData.otherMatters.length }} 字</span>
@@ -280,7 +280,7 @@
                 <textarea
                   v-model="formData.pendingIssues"
                   class="field-textarea"
-                  rows="5"
+                  rows="2"
                   placeholder="待处理问题，后续跟进..."
                 ></textarea>
                 <span class="field-hint">{{ formData.pendingIssues.length }} 字 · 将在下个班次优先展示</span>
@@ -602,6 +602,9 @@ const getWeatherLabel = (key) => {
 }
 
 .form-card { padding: 24px; }
+
+// 其他事项/遗留问题：默认 2 行（覆盖全局 min-height:80px），可手动拖拽增高
+.create-record-view .field-textarea { min-height: 56px; }
 
 .step-panel { display: flex; flex-direction: column; gap: 16px; }
 

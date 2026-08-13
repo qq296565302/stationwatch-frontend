@@ -144,6 +144,19 @@
                         <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                       </svg>
                     </button>
+                    <button
+                      v-if="officer.id !== store.user.id"
+                      class="action-btn danger"
+                      title="删除"
+                      @click="handleDelete(officer)"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/>
+                        <path d="M10 11v6M14 11v6"/>
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                      </svg>
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -326,10 +339,12 @@ import ScheduleTable from '@/components/ScheduleTable.vue'
 import ScheduleEditDialog from '@/components/ScheduleEditDialog.vue'
 import ResetPasswordDialog from '@/components/ResetPasswordDialog.vue'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import { getCurrentDateISO } from '@/data/mockData'
 
 const store = useAppStore()
 const toast = useToast()
+const confirm = useConfirm()
 
 // 值班员列表：从后端 /users 接口拉取（仅管理员可访问，非管理员时列表为空）
 const officers = computed(() => store.users.map(u => ({
@@ -379,6 +394,23 @@ const resetTarget = ref(null)
 const openReset = (officer) => {
   resetTarget.value = officer
   showReset.value = true
+}
+
+// ---- 删除值班员（市级超管/区县管理员/所长，后端校验范围；不可删自己） ----
+const handleDelete = async (officer) => {
+  const ok = await confirm.open({
+    title: '删除值班员',
+    message: `确认删除值班员「${officer.realName}」（${officer.username}）？删除后其账号将无法登录，历史值班记录仍会保留。`,
+    confirmText: '删除',
+    type: 'danger'
+  })
+  if (!ok) return
+  try {
+    await store.deleteUser(officer.id)
+    toast.success('值班员已删除')
+  } catch (e) {
+    toast.error(e.message || '删除失败')
+  }
 }
 
 // ---- 值班排班 ----
@@ -719,6 +751,12 @@ watch(() => store.currentStationId, () => {
     color: $primary;
     background: $primary-soft;
     border-color: $border-accent;
+  }
+
+  &.danger:hover {
+    color: $crit;
+    background: rgba($crit, 0.08);
+    border-color: rgba($crit, 0.3);
   }
 }
 

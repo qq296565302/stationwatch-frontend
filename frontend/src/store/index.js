@@ -173,7 +173,6 @@ export const useAppStore = defineStore('app', {
     // 可创建/编辑值班记录：区县管理员无此权限
     canCreateRecord(state) { return state.user.role !== 'district_admin' },
     canExport(state) { return ['supervisor', 'district_admin', 'admin'].includes(state.user.role) },
-    canLock(state) { return ['supervisor', 'admin'].includes(state.user.role) },
     // 当前用户可见站点列表：admin 全部、district_admin 本区县、其余仅当前站
     visibleStations(state) {
       if (state.user.role === 'admin') return state.stations
@@ -544,6 +543,13 @@ export const useAppStore = defineStore('app', {
       return resp.data || resp
     },
 
+    // 删除值班员/用户（市级超管/区县管理员/所长，后端会校验范围并吊销其登录态）
+    async deleteUser(id) {
+      const resp = await api.delete(`/users/${id}`)
+      this.users = this.users.filter(u => u.id !== Number(id))
+      return resp.data || resp
+    },
+
     // ============ 值班排班（按当前站点） ============
     async fetchScheduleConfig() {
       try {
@@ -691,24 +697,6 @@ export const useAppStore = defineStore('app', {
       await api.delete(`/records/${id}`)
       const idx = this.records.findIndex(r => r.id === Number(id))
       if (idx !== -1) this.records.splice(idx, 1)
-    },
-
-    async lockRecord(id) {
-      const resp = await api.post(`/records/${id}/lock`)
-      const data = resp.data || resp
-      const record = normalizeRecord(data)
-      const idx = this.records.findIndex(r => r.id === record.id)
-      if (idx >= 0) this.records[idx] = record
-      return record
-    },
-
-    async unlockRecord(id) {
-      const resp = await api.post(`/records/${id}/unlock`)
-      const data = resp.data || resp
-      const record = normalizeRecord(data)
-      const idx = this.records.findIndex(r => r.id === record.id)
-      if (idx >= 0) this.records[idx] = record
-      return record
     },
 
     async resolvePendingIssue(recordId, issueId) {
