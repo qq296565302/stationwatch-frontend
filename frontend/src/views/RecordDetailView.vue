@@ -176,6 +176,13 @@
                   <span class="timeline-result-label">处理结果</span>
                   <span class="timeline-result-value">{{ item.result }}</span>
                 </div>
+                <!-- 客户满意标签 -->
+                <div v-if="item.customerSatisfied" class="satisfied-badge">
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                  客户满意
+                </div>
                 <div class="timeline-meta" @click.stop>
                   <div class="time-block">
                     <span class="time-block-label font-mono">受理</span>
@@ -371,15 +378,52 @@
               </div>
               <div class="field-row">
                 <span class="field-name">完成时间</span>
-                <span class="field-value font-mono">{{ detailItem.endTime || '—' }}</span>
+                <TimePicker
+                  v-if="record && store.canEditRecordFor(record)"
+                  :model-value="endTimeForPicker"
+                  :limit-to-now="true"
+                  @update:model-value="onEndTimeChange"
+                />
+                <span v-else class="field-value font-mono">{{ detailItem.endTime || '—' }}</span>
+              </div>
+              <div class="field-row">
+                <span class="field-name">客户满意</span>
+                <button
+                  v-if="record && store.canEditRecordFor(record)"
+                  type="button"
+                  class="satisfied-toggle"
+                  :class="{
+                    selected: detailItem.customerSatisfied,
+                    disabled: !detailItem.result
+                  }"
+                  :disabled="!detailItem.result"
+                  @click="onToggleSatisfied"
+                  :title="detailItem.result ? (detailItem.customerSatisfied ? '取消客户满意标签' : '标记为客户满意') : '请先填写处理结果'"
+                >
+                  <span class="satisfied-icon">
+                    <svg v-if="detailItem.customerSatisfied" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                    <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                  </span>
+                  <span class="satisfied-text">
+                    {{ detailItem.result
+                        ? (detailItem.customerSatisfied ? '客户满意' : '标记为客户满意')
+                        : '请先填写处理结果' }}
+                  </span>
+                </button>
+                <span v-else class="field-value">{{ detailItem.customerSatisfied ? '客户满意' : '未标记' }}</span>
               </div>
               <div class="field-row field-row-full">
                 <span class="field-name">处理结果</span>
                 <ComboboxInput
                   v-if="!detailItem.isCompleted && store.canEditRecordFor(record)"
-                  v-model="detailItem.result"
+                  :model-value="detailItem.result"
                   :options="resultOptions"
                   placeholder="选择或输入处理结果..."
+                  @update:model-value="onResultChange"
                 />
                 <span v-else class="field-value">{{ detailItem.result || '—' }}</span>
               </div>
@@ -424,6 +468,7 @@ import { useAppStore } from '@/store'
 import PageHeader from '@/components/PageHeader.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import ComboboxInput from '@/components/ComboboxInput.vue'
+import TimePicker from '@/components/TimePicker.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { getCurrentTime } from '@/data/mockData'
@@ -604,6 +649,48 @@ const handleCompleteItem = async (item) => {
 // 工单详情抽屉
 const detailItem = ref(null)
 const detailIndex = ref(0)
+
+// 完成时间：把可能带秒的 endTime 归一化为 HH:mm 供 TimePicker 显示
+const endTimeForPicker = computed(() => {
+  if (!detailItem.value?.endTime) return ''
+  return detailItem.value.endTime.slice(0, 5)
+})
+
+// 保存工单字段（完成时间 / 客户满意）到后端
+const saveItemField = async (payload, successMsg) => {
+  if (!record.value || !detailItem.value) return
+  try {
+    await store.updateItem(record.value.id, detailItem.value.id, payload)
+    if (successMsg) toast.success(successMsg)
+  } catch (e) {
+    toast.error(e.message || '保存失败')
+  }
+}
+
+// 完成时间变化：更新本地值并保存（防抖，避免时/分分开触发多次请求）
+let endTimeTimer = null
+const onEndTimeChange = (val) => {
+  if (!detailItem.value) return
+  detailItem.value.endTime = val
+  clearTimeout(endTimeTimer)
+  endTimeTimer = setTimeout(() => saveItemField({ endTime: val }), 400)
+}
+
+// 切换客户满意标签：填写处理结果后即可切换，切换后即时保存
+const onToggleSatisfied = () => {
+  if (!detailItem.value || !detailItem.value.result) return
+  detailItem.value.customerSatisfied = !detailItem.value.customerSatisfied
+  saveItemField({ customerSatisfied: detailItem.value.customerSatisfied })
+}
+
+// 处理结果变化：仅保存处理结果，不自动标记完成（避免锁定，处理结果可继续修改）
+const onResultChange = (val) => {
+  if (!detailItem.value) return
+  detailItem.value.result = val
+  if (val) {
+    saveItemField({ result: val })
+  }
+}
 
 let itemClickTimer = null
 
@@ -1100,6 +1187,75 @@ watch(() => route.params.id, (id) => { if (id) loadDetail() })
   font-weight: $fw-medium;
   line-height: $lh-base;
   word-break: break-word;
+}
+
+// ===== 客户满意徽标 =====
+.satisfied-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px $space-3;
+  margin-bottom: $space-2;
+  background: $ok-soft;
+  border: 1px solid $ok-border;
+  border-radius: 999px;
+  color: #047857;
+  font-size: $fs-sm;
+  font-weight: 600;
+
+  svg {
+    width: 13px;
+    height: 13px;
+  }
+}
+
+// ===== 客户满意切换（抽屉内）=====
+.satisfied-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: $bg-card;
+  border: 1px solid $border-base;
+  border-radius: 999px;
+  color: $text-secondary;
+  font-family: $font-body;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+
+  &:hover:not(:disabled) {
+    border-color: $ok-border;
+    color: $text-primary;
+  }
+
+  &.selected {
+    background: $ok-soft;
+    border-color: $ok-border;
+    color: #047857;
+
+    &:hover:not(:disabled) {
+      background: $ok-soft;
+    }
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: $bg-subtle;
+  }
+}
+
+.satisfied-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    width: 13px;
+    height: 13px;
+  }
 }
 
 .timeline-meta {

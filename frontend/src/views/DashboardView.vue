@@ -46,7 +46,7 @@
       <StatCard label="接单总数" :value="metrics.total" unit="项" />
       <StatCard label="已完成" :value="metrics.done" unit="项" />
       <StatCard label="完成率" :value="metrics.completion" unit="%" />
-      <StatCard label="超时工单" :value="metrics.overdue" unit="项" :sub="`${metrics.overdueRate}%`" />
+      <StatCard label="超时工单" :value="metrics.overdue" unit="项" :sub="`${metrics.overdueRate}%`" variant="critical" :to="overdueLink" />
     </div>
 
     <!-- 主体两栏 -->
@@ -308,13 +308,21 @@
                 <span class="dup-count">{{ g.count }} 次</span>
               </div>
               <div class="dup-items">
-                <div v-for="it in g.items" :key="it.id" class="dup-item">
-                  <span class="dup-date font-mono">{{ it._recordDate }}</span>
-                  <span class="dup-type">{{ it.businessType }}</span>
-                  <span class="dup-content">{{ it.content }}</span>
-                  <span v-if="it.acceptTime" class="dup-time font-mono">
-                    {{ it.acceptTime }}<span v-if="it.endTime">→{{ it.endTime }}</span>
-                  </span>
+                <div v-for="it in g.items" :key="it.id" class="dup-item" role="link" tabindex="0" :aria-label="'查看工单详情'" @click="goRecord(it)" @keydown.enter="goRecord(it)">
+                  <div class="dup-item-main">
+                    <span class="dup-content">{{ it.content }}</span>
+                    <span v-if="it.customerSatisfied" class="dup-satisfied">客户满意</span>
+                  </div>
+                  <div class="dup-item-meta">
+                    <span v-if="it.businessType" class="dup-meta-item">{{ it.businessType }}</span>
+                    <span v-if="it.customerName" class="dup-meta-item">客户 {{ it.customerName }}</span>
+                    <span v-if="it.customerPhone" class="dup-meta-item">{{ it.customerPhone }}</span>
+                    <span v-if="it.customerAddress" class="dup-meta-item">{{ it.customerAddress }}</span>
+                  </div>
+                  <div class="dup-item-foot">
+                    <span v-if="it.result" class="dup-result">处理结果：{{ it.result }}</span>
+                    <span class="dup-time font-mono">{{ it._recordDate }} {{ it.acceptTime }}<template v-if="it.endTime">→{{ it.endTime }}</template></span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -328,13 +336,21 @@
                 <span class="dup-count">{{ g.count }} 次</span>
               </div>
               <div class="dup-items">
-                <div v-for="it in g.items" :key="it.id" class="dup-item">
-                  <span class="dup-date font-mono">{{ it._recordDate }}</span>
-                  <span class="dup-type">{{ it.businessType }}</span>
-                  <span class="dup-content">{{ it.content }}</span>
-                  <span v-if="it.acceptTime" class="dup-time font-mono">
-                    {{ it.acceptTime }}<span v-if="it.endTime">→{{ it.endTime }}</span>
-                  </span>
+                <div v-for="it in g.items" :key="it.id" class="dup-item" role="link" tabindex="0" :aria-label="'查看工单详情'" @click="goRecord(it)" @keydown.enter="goRecord(it)">
+                  <div class="dup-item-main">
+                    <span class="dup-content">{{ it.content }}</span>
+                    <span v-if="it.customerSatisfied" class="dup-satisfied">客户满意</span>
+                  </div>
+                  <div class="dup-item-meta">
+                    <span v-if="it.businessType" class="dup-meta-item">{{ it.businessType }}</span>
+                    <span v-if="it.customerName" class="dup-meta-item">客户 {{ it.customerName }}</span>
+                    <span v-if="it.customerPhone" class="dup-meta-item">{{ it.customerPhone }}</span>
+                    <span v-if="it.customerAddress" class="dup-meta-item">{{ it.customerAddress }}</span>
+                  </div>
+                  <div class="dup-item-foot">
+                    <span v-if="it.result" class="dup-result">处理结果：{{ it.result }}</span>
+                    <span class="dup-time font-mono">{{ it._recordDate }} {{ it.acceptTime }}<template v-if="it.endTime">→{{ it.endTime }}</template></span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -364,6 +380,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAppStore } from '@/store'
 import StatCard from '@/components/StatCard.vue'
 import TrendChart from '@/components/TrendChart.vue'
@@ -373,6 +390,7 @@ import { getCurrentDateISO } from '@/data/mockData'
 import { getItemTimeoutState } from '@/utils/orderTimeout'
 
 const store = useAppStore()
+const router = useRouter()
 const range = ref('month')
 const trendMode = ref('line')
 const refreshing = ref(false)
@@ -416,6 +434,9 @@ const rangeBounds = computed(() => {
 
 const rangeMeta = computed(() => `${rangeBounds.value.start} → ${rangeBounds.value.end}`)
 
+// 超时工单预警卡跳转：携带当前统计区间，列表与卡片口径一致
+const overdueLink = computed(() => `/records?filter=overdue&from=${rangeBounds.value.start}&to=${rangeBounds.value.end}`)
+
 // ===== 现有 activeRecord 兼容 =====
 const activeRecord = computed(() => store.activeRecord)
 
@@ -449,6 +470,12 @@ const metrics = computed(() => store.efficiencyMetrics(rangeBounds.value.start, 
 
 // ===== 重复工单（同一客户或同一地址报修 ≥2 次） =====
 const dupStats = computed(() => store.duplicateWorkOrders(rangeBounds.value.start, rangeBounds.value.end))
+
+// 点击重复工单列表项 → 跳转对应记录详情（item 携带后端回填的 recordId）
+const goRecord = (it) => {
+  if (!it.recordId) return
+  router.push(`/records/${it.recordId}`)
+}
 
 // ===== 趋势图数据 =====
 const trendData = computed(() => {
@@ -979,22 +1006,27 @@ onMounted(() => {
 .dup-items { display: flex; flex-direction: column; gap: 4px; }
 .dup-item {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
   background: $bg-card;
   border: 1px solid $border-subtle;
   border-radius: $radius-sm;
   font-size: 12px;
+  cursor: pointer;
+  transition: border-color $duration-fast $ease-out;
+
+  &:hover,
+  &:focus-visible {
+    border-color: $accent;
+    outline: none;
+  }
 }
-.dup-date { color: $text-muted; flex-shrink: 0; }
-.dup-type {
-  color: $text-secondary;
-  flex-shrink: 0;
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.dup-item-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 .dup-content {
   flex: 1;
@@ -1002,7 +1034,48 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 600;
   color: $text-primary;
 }
-.dup-time { font-size: 11px; color: $text-secondary; flex-shrink: 0; }
+.dup-satisfied {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: $radius-full;
+  font-size: 11px;
+  font-weight: 600;
+  background: $ok-soft;
+  border: 1px solid $ok-border;
+  color: $ok;
+}
+.dup-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: $text-secondary;
+  min-width: 0;
+}
+.dup-meta-item {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dup-item-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+.dup-result {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: $text-secondary;
+}
+.dup-time { font-size: 11px; color: $text-muted; flex-shrink: 0; }
 </style>

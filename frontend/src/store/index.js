@@ -619,16 +619,19 @@ export const useAppStore = defineStore('app', {
       }
     },
 
-    async fetchRecordById(id) {
+    async fetchRecordById(id, persist = true) {
       const resp = await api.get(`/records/${id}`)
       // 只取业务 data；错误/无效响应（如 /records/undefined 或 404）时 data 为 null，
       // 不污染 records，避免切站/路由跳转瞬间插入"未知记录"
       const data = resp?.data ?? null
       if (!data || typeof data !== 'object' || data.id == null) return null
       const record = normalizeRecord(data)
-      const idx = this.records.findIndex(r => r.id === record.id)
-      if (idx >= 0) this.records[idx] = record
-      else this.records.unshift(record)
+      // persist=false：仅取明细不入库（遗留问题弹窗拉跨站历史记录时用，避免污染单站统计）
+      if (persist) {
+        const idx = this.records.findIndex(r => r.id === record.id)
+        if (idx >= 0) this.records[idx] = record
+        else this.records.unshift(record)
+      }
       return record
     },
 
@@ -667,6 +670,30 @@ export const useAppStore = defineStore('app', {
         if (e.code === 20001) return null
         throw e
       }
+    },
+
+    // 主控台提醒专用：聚合拉取全部可见站今日记录（不写 state.records，避免污染单站统计口径）
+    async fetchAllTodayRecords() {
+      const stations = this.stations.length
+        ? this.stations
+        : (this.currentStationId ? [{ id: this.currentStationId }] : [])
+      const results = await Promise.allSettled(stations.map(s =>
+        api.get('/records/today', { params: { stationId: s.id } })
+      ))
+      const out = []
+      results.forEach((res, i) => {
+        if (res.status !== 'fulfilled') return
+        const data = res.value?.data ?? res.value ?? null
+        if (!data) return
+        const record = normalizeRecord(data)
+        out.push({
+          stationId: stations[i].id,
+          stationName: stations[i].name || '',
+          orderTimeLimit: stations[i].orderTimeLimit,
+          record
+        })
+      })
+      return out
     },
 
     getRecordById(id) {
@@ -775,8 +802,8 @@ export const useAppStore = defineStore('app', {
 
     async fetchDashboardAlerts() {
       try {
-        const params = this.currentStationId ? { stationId: this.currentStationId } : {}
-        const resp = await api.get('/dashboard/alerts', { params })
+        // 不传 stationId：后端按当前用户可见范围聚合全部站点（主控台跨站提醒）
+        const resp = await api.get('/dashboard/alerts')
         this.alerts = resp.data || resp || []
       } catch {}
     },

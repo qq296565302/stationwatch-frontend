@@ -77,6 +77,14 @@
         <option value="active">进行中</option>
         <option value="locked">已锁定</option>
       </select>
+      <button
+        class="overdue-chip"
+        :class="{ active: filters.overdueOnly }"
+        title="仅展示含超时工单的记录"
+        @click="filters.overdueOnly = !filters.overdueOnly"
+      >
+        仅看超时工单
+      </button>
       <input
         v-model="filters.dateFrom"
         type="date"
@@ -154,6 +162,23 @@
                   <i class="pending-dot"></i>
                   遗留{{ pendingUnresolved(record).length }}
                 </span>
+                <span
+                  v-if="hasSatisfied(record)"
+                  class="satisfied-tag"
+                  :title="'该记录有客户满意的工单'"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                  </svg>
+                  客户满意
+                </span>
+                <span
+                  v-if="hasOverdue(record)"
+                  class="tag tag-crit"
+                  :title="'该记录有 ' + overdueCount(record) + ' 条超时工单'"
+                >
+                  {{ overdueCount(record) }} 条超时工单
+                </span>
               </div>
             </td>
             <td @click.stop class="action-cell">
@@ -222,6 +247,15 @@
         <div v-if="record.hasPending" class="card-warning">
           有 {{ pendingUnresolved(record).length }} 条遗留问题待处理
         </div>
+        <div v-if="hasSatisfied(record)" class="satisfied-badge">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+          客户满意
+        </div>
+        <div v-if="hasOverdue(record)" class="overdue-badge">
+          {{ overdueCount(record) }} 条超时工单
+        </div>
       </div>
 
       <div v-if="!filteredRecords.length" class="empty">
@@ -234,13 +268,16 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '@/store'
 import PageHeader from '@/components/PageHeader.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { useToast } from '@/composables/useToast'
 import { getCurrentDateISO } from '@/data/mockData'
+import { getItemTimeoutState } from '@/utils/orderTimeout'
 const store = useAppStore()
 const toast = useToast()
+const route = useRoute()
 
 // 值班记录生命周期状态（当天=进行中，前一天=即将锁定）统一走 store getter
 const displayStatus = (record) => store.recordDisplayStatus(record)
@@ -253,13 +290,28 @@ const officerText = (r) => (r.dutyOfficers && r.dutyOfficers.length)
 // 未确认解决的遗留问题条目（列表表格徽标 / 卡片警示）
 const pendingUnresolved = (r) => (r.pendingIssues || []).filter(p => !p.isResolved)
 
+// 记录中是否有客户满意的工单（列表表格徽标 / 卡片徽标）
+const hasSatisfied = (r) => (r.dutyItems || []).some(i => i.customerSatisfied)
+
+// 超时工单判定：口径与 store.efficiencyMetrics 一致（overdue + completed_overdue 都算）
+const timeoutStateOf = (item, record) =>
+  getItemTimeoutState(item, record.recordDate, store.currentStationOrderTimeLimit)
+const overdueCount = (record) =>
+  (record.dutyItems || []).filter(item => {
+    const st = timeoutStateOf(item, record)
+    return st && (st.state === 'overdue' || st.state === 'completed_overdue')
+  }).length
+const hasOverdue = (record) => overdueCount(record) > 0
+
 const viewMode = ref('table')
 
+// 从 Dashboard 超时预警卡跳入时带 filter/from/to query，一次性初始化筛选（不做 watch，避免与手动开关互相覆盖）
 const filters = reactive({
   search: '',
   status: '',
-  dateFrom: '',
-  dateTo: ''
+  dateFrom: route.query.from || '',
+  dateTo: route.query.to || '',
+  overdueOnly: route.query.filter === 'overdue'
 })
 
 // 站点切换（admin）：与顶栏切换器一致，联动 store.currentStationId
@@ -285,21 +337,27 @@ const filteredRecords = computed(() => {
     if (filters.status && r.status !== filters.status) return false
     if (filters.dateFrom && r.recordDate < filters.dateFrom) return false
     if (filters.dateTo && r.recordDate > filters.dateTo) return false
+    if (filters.overdueOnly && !hasOverdue(r)) return false
     return true
   })
 })
 
 const resetFilters = () => {
-  Object.keys(filters).forEach(k => filters[k] = '')
+  filters.search = ''
+  filters.status = ''
+  filters.dateFrom = ''
+  filters.dateTo = ''
+  filters.overdueOnly = false
 }
 
-// 数据加载：进入页面时拉取最近 30 天记录
+// 数据加载：进入页面时拉取记录；超时预警跳入时用携带的区间，并加大 pageSize 防截断
 const loadRecords = async () => {
   try {
     const now = new Date()
-    const end = now.toISOString().slice(0, 10)
-    const start = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10)
-    await store.fetchRecords({ startDate: start, endDate: end, page: 1, pageSize: 50, sortOrder: 'desc' })
+    const end = route.query.to || now.toISOString().slice(0, 10)
+    const start = route.query.from || new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10)
+    const pageSize = route.query.filter === 'overdue' ? 200 : 50
+    await store.fetchRecords({ startDate: start, endDate: end, page: 1, pageSize, sortOrder: 'desc' })
   } catch (e) {
     toast.error(e.message || '记录加载失败')
   }
@@ -389,6 +447,31 @@ watch(() => store.recordsLoaded, (v) => { if (v) {/* noop */} })
 .filter-dash {
   color: $text-muted;
   font-size: 12px;
+}
+
+// 仅看超时工单筛选 chip
+.overdue-chip {
+  padding: 7px 10px;
+  background: $bg-card;
+  border: 1px solid $border-base;
+  border-radius: 6px;
+  color: $text-secondary;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all $duration-fast $ease-out;
+
+  &:hover {
+    border-color: $crit;
+    color: $crit;
+  }
+
+  &.active {
+    background: $crit-soft;
+    border-color: $crit-border;
+    color: $crit;
+  }
 }
 
 // ===== 视图切换 =====
@@ -498,6 +581,64 @@ watch(() => store.recordsLoaded, (v) => { if (v) {/* noop */} })
   border-radius: 50%;
   background: $warn;
   flex-shrink: 0;
+}
+
+// ===== 客户满意徽标（表格） =====
+.satisfied-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid $ok-border;
+  background: $ok-soft;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  cursor: default;
+  white-space: nowrap;
+
+  svg {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+  }
+}
+
+// ===== 客户满意徽标（卡片） =====
+.satisfied-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  background: $ok-soft;
+  border: 1px solid $ok-border;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  align-self: flex-start;
+
+  svg {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+  }
+}
+
+// ===== 超时工单徽标（卡片） =====
+.overdue-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  background: $crit-soft;
+  border: 1px solid $crit-border;
+  color: $crit;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 999px;
+  align-self: flex-start;
 }
 
 // 有未解决遗留问题的行：左侧琥珀色竖条标识

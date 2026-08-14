@@ -378,7 +378,8 @@ const createEmptyItem = () => ({
   handler: store.user.role !== 'admin' ? store.user.realName : '',
   endTime: '',
   result: '',
-  isCompleted: false
+  isCompleted: false,
+  customerSatisfied: false
 })
 
 // ---- 值班日期：新建时可选今天或昨天（补录前一天记录） ----
@@ -460,7 +461,8 @@ onMounted(async () => {
           handler: i.handler || '',
           endTime: i.endTime || '',
           result: i.result || '',
-          isCompleted: !!i.isCompleted
+          isCompleted: !!i.isCompleted,
+          customerSatisfied: !!i.customerSatisfied
         }))
         if (formData.dutyItems.length === 0) formData.dutyItems = [createEmptyItem()]
         formData.otherMatters = record.otherMatters || ''
@@ -552,7 +554,8 @@ const handleSubmit = async () => {
       handler: i.handler,
       endTime: i.endTime || null,
       result: i.result || '',
-      isCompleted: !!i.isCompleted
+      isCompleted: !!i.isCompleted,
+      customerSatisfied: !!i.customerSatisfied
     })),
     otherMatters: formData.otherMatters,
     pendingIssues: formData.pendingIssues

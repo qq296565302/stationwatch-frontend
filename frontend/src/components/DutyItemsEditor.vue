@@ -135,10 +135,40 @@
                   placeholder="选择或输入处理结果..."
                 />
               </div>
-              <div class="field">
-                <label class="field-label">完成时间</label>
-                <TimePicker v-model="item.endTime" :limit-to-now="acceptTimeLimitToNow" />
-                <span class="field-hint">选择处理结果后自动填入当前时间，可点击修改</span>
+              <!-- 完成时间 + 客户满意标签（同一行） -->
+              <div class="field field-full">
+                <label class="field-label">完成信息</label>
+                <div class="complete-row">
+                  <div class="complete-time">
+                    <TimePicker v-model="item.endTime" :limit-to-now="acceptTimeLimitToNow" />
+                    <span class="field-hint">选择处理结果后自动填入当前时间，可点击修改</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="satisfied-toggle"
+                    :class="{
+                      selected: item.customerSatisfied,
+                      disabled: !item.isCompleted
+                    }"
+                    :disabled="!item.isCompleted"
+                    @click="toggleSatisfied(item)"
+                    :title="item.isCompleted ? (item.customerSatisfied ? '取消客户满意标签' : '标记为客户满意') : '请先标记工单完成后选择'"
+                  >
+                    <span class="satisfied-icon">
+                      <svg v-if="item.customerSatisfied" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                      </svg>
+                      <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                      </svg>
+                    </span>
+                    <span class="satisfied-text">
+                      {{ item.isCompleted
+                          ? (item.customerSatisfied ? '客户满意' : '标记为客户满意')
+                          : '仅已完成工单可标记' }}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -219,7 +249,11 @@ const store = useAppStore()
 const toast = useToast()
 
 // 字典选项：统一走后端 /dictionaries 接口（后端返回 { id, label } 对象数组）
-const businessTypeOptions = computed(() => store.dictionaries.businessTypes.map(d => d.label))
+// 「新装业务」不再受理，从业务类型选项中移除（不影响历史工单数据展示）
+const EXCLUDED_BUSINESS_TYPES = ['新装业务']
+const businessTypeOptions = computed(() =>
+  store.dictionaries.businessTypes.map(d => d.label).filter(label => !EXCLUDED_BUSINESS_TYPES.includes(label))
+)
 const acceptContentOptions = computed(() => store.dictionaries.acceptContents.map(d => d.label))
 const resultOptions = computed(() => store.dictionaries.results.map(d => d.label))
 const handlerOptions = computed(() => store.dictionaries.officers.map(o => o.label))
@@ -275,7 +309,8 @@ const addItem = () => {
     handler: store.user.role !== 'admin' ? store.user.realName : '',
     endTime: '',
     result: '',
-    isCompleted: false
+    isCompleted: false,
+    customerSatisfied: false
   }]
   emit('update:modelValue', next)
 }
@@ -329,6 +364,13 @@ const markUncomplete = (item) => {
   item.isCompleted = false
   item.endTime = ''
   item.result = ''
+  item.customerSatisfied = false
+}
+
+// 切换「客户满意」标签：仅已完成工单可切换
+const toggleSatisfied = (item) => {
+  if (!item.isCompleted) return
+  item.customerSatisfied = !item.customerSatisfied
 }
 </script>
 
@@ -502,6 +544,70 @@ const markUncomplete = (item) => {
   &:focus {
     border-color: $accent;
     box-shadow: 0 0 0 3px $accent-soft;
+  }
+}
+
+// ===== 完成信息行（完成时间 + 客户满意标签）=====
+.complete-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.complete-time {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+// ===== 客户满意标签 =====
+.satisfied-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: $bg-card;
+  border: 1px solid $border-base;
+  border-radius: 999px;
+  color: $text-secondary;
+  font-family: $font-body;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: all 120ms ease;
+
+  &:hover:not(:disabled) {
+    border-color: $ok-border;
+    color: $text-primary;
+  }
+
+  &.selected {
+    background: $ok-soft;
+    border-color: $ok-border;
+    color: #047857;
+
+    &:hover:not(:disabled) {
+      background: $ok-soft;
+    }
+  }
+
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: $bg-subtle;
+  }
+}
+
+.satisfied-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    width: 14px;
+    height: 14px;
   }
 }
 
