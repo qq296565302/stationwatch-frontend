@@ -74,18 +74,6 @@
           <span v-else>登录</span>
         </button>
 
-        <div class="login-role">
-          <span class="role-tip">演示账号：</span>
-          <button
-            v-for="r in rolePresets"
-            :key="r.name"
-            type="button"
-            class="role-chip"
-            @click="quickFill(r)"
-          >
-            {{ r.label }}
-          </button>
-        </div>
       </div>
 
       <div class="login-footer">
@@ -115,17 +103,6 @@ const form = reactive({
 
 const showPassword = ref(false)
 const loading = ref(false)
-
-const rolePresets = [
-  { label: '值班员', name: '李栋', username: 'lidong', password: '@zbdl-95598' },
-  { label: '区县管理员', name: '张店区管理员', username: 'zd_admin', password: 'zd123456' },
-  { label: '管理员', name: '超级管理员', username: 'admin', password: 'admin123' }
-]
-
-const quickFill = (r) => {
-  form.username = r.username
-  form.password = r.password
-}
 
 const onForgot = () => {
   toast.info('请联系系统管理员重置密码', '忘记密码')
@@ -169,7 +146,10 @@ const handleLogin = async () => {
 // ---- 背景 ----
 .login-bg {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   pointer-events: none;
   z-index: 0;
 }
@@ -196,7 +176,10 @@ const handleLogin = async () => {
 
 .bg-grid {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   background-image:
     linear-gradient(rgba(15, 23, 42, 0.025) 1px, transparent 1px),
     linear-gradient(90deg, rgba(15, 23, 42, 0.025) 1px, transparent 1px);
@@ -353,39 +336,6 @@ const handleLogin = async () => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-// ---- 角色快捷登录 ----
-.login-role {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-top: 12px;
-  border-top: 1px solid $border-subtle;
-  font-size: 12px;
-}
-
-.role-tip {
-  color: $text-muted;
-  margin-right: 2px;
-}
-
-.role-chip {
-  padding: 3px 10px;
-  background: $bg-subtle;
-  border: 1px solid $border-base;
-  border-radius: 12px;
-  color: $text-secondary;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 120ms ease;
-
-  &:hover {
-    background: $accent-soft;
-    border-color: $accent-border;
-    color: $accent;
-  }
 }
 
 // ---- 底部 ----

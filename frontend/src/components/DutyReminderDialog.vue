@@ -1,5 +1,5 @@
 <template>
-  <transition name="dialog">
+  <transition name="dialog" :duration="250">
     <!-- 遮罩无 @click.self：点击遮罩不可关闭，体现「强制提醒」语义 -->
     <div v-if="dialog.visible" class="duty-overlay">
       <div class="duty-dialog" role="alertdialog">
@@ -39,10 +39,14 @@ const goCreate = () => {
 <style lang="scss" scoped>
 .duty-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   z-index: 9500;
   background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;

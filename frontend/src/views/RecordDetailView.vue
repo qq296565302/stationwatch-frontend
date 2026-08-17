@@ -320,9 +320,9 @@
   </div>
 
   <!-- 工单详情抽屉 -->
-  <transition name="drawer-fade">
+  <transition name="drawer-fade" :duration="300">
     <div v-if="detailItem" class="drawer-overlay" @click.self="closeItemDetail">
-      <transition name="drawer" appear>
+      <transition name="drawer" appear :duration="300">
         <aside v-if="detailItem" class="drawer" role="dialog" aria-modal="true">
           <div class="drawer-header">
             <div class="drawer-title-wrap">
@@ -921,7 +921,10 @@ watch(() => route.params.id, (id) => { if (id) loadDetail() })
 
 .circle-content {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1488,10 +1491,14 @@ watch(() => route.params.id, (id) => { if (id) loadDetail() })
 // ===== 抽屉 Drawer =====
 .drawer-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   z-index: 9000;
   background: rgba(15, 23, 42, 0.36);
-  backdrop-filter: blur(2px);
   display: flex;
   justify-content: flex-end;
 }

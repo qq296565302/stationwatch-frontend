@@ -1,5 +1,5 @@
 <template>
-  <transition name="dialog">
+  <transition name="dialog" :duration="250">
     <div v-if="visible" class="dialog-overlay" @click.self="onCancel">
       <div class="dialog dialog-wide">
         <div class="dialog-header">
@@ -21,6 +21,18 @@
             <div class="meta-info">
               <span class="tag tag-info">当前 {{ form.groups.length }} 组 · {{ form.groups.length }} 天一轮</span>
               <span class="meta-hint">每组分值一天，按序循环</span>
+            </div>
+          </div>
+
+          <div class="batch-import">
+            <div class="batch-import-head">
+              <span class="batch-import-title">批量导入分组</span>
+              <span class="batch-import-hint">每行一组「组名：成员1、成员2」，组名可省略</span>
+            </div>
+            <textarea v-model="importText" class="batch-import-input" rows="4" placeholder="第1组：张三、李四、王五&#10;第2组：赵六、孙七、周八"></textarea>
+            <div class="batch-import-actions">
+              <button class="btn btn-secondary btn-sm" type="button" :disabled="!importText.trim()" @click="applyImport">解析并应用</button>
+              <span v-if="importHint" class="batch-import-hint">{{ importHint }}</span>
             </div>
           </div>
 
@@ -74,9 +86,10 @@
 </template>
 
 <script setup>
-import { reactive, computed, watch } from 'vue'
+import { reactive, computed, watch, ref } from 'vue'
 import { useAppStore } from '@/store'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import { getCurrentDateISO } from '@/data/mockData'
 
 const props = defineProps({
@@ -86,6 +99,7 @@ const emit = defineEmits(['update:visible', 'saved'])
 
 const store = useAppStore()
 const toast = useToast()
+const confirm = useConfirm()
 
 const form = reactive({ startDate: '', groups: [] })
 
@@ -137,6 +151,71 @@ const removeGroup = (gi) => {
   form.groups.forEach((g, i) => { g.sortOrder = i + 1 })
 }
 
+// ---- 批量粘贴导入（每行一组「组名：成员1、成员2」，按姓名匹配本所值班员） ----
+const importText = ref('')
+const importHint = ref('')
+
+const applyImport = async () => {
+  const nameToId = new Map()
+  dutyOfficers.value.forEach(u => nameToId.set(u.realName.trim(), u.id))
+  const parsed = []
+  const unknown = []
+
+  importText.value
+    .split('\n')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      let name = ''
+      let membersText = line
+      const colonIdx = line.search(/[：:]/)
+      if (colonIdx >= 0) {
+        name = line.slice(0, colonIdx).trim()
+        membersText = line.slice(colonIdx + 1)
+      }
+      const memberIds = []
+      membersText
+        .split(/[、,，;；\s]+/)
+        .map(s => s.trim())
+        .filter(Boolean)
+        .forEach((mn) => {
+          const id = nameToId.get(mn)
+          if (id) { if (!memberIds.includes(id)) memberIds.push(id) }
+          else if (!unknown.includes(mn)) unknown.push(mn)
+        })
+      parsed.push({ name: name || `第${parsed.length + 1}组`, sortOrder: parsed.length + 1, memberIds })
+    })
+
+  if (!parsed.length) { importHint.value = '未解析到任何分组，请检查格式'; return }
+  // 同人跨组去重：保留首次出现
+  const seen = new Set()
+  parsed.forEach(g => {
+    g.memberIds = g.memberIds.filter(id => {
+      if (seen.has(id)) return false
+      seen.add(id)
+      return true
+    })
+  })
+
+  // 覆盖当前分组前二次确认，避免误操作丢配置
+  if (form.groups.length) {
+    const ok = await confirm.open({
+      title: '覆盖当前分组',
+      message: `将用 ${parsed.length} 组替换当前 ${form.groups.length} 组，确定？`,
+      confirmText: '覆盖',
+      cancelText: '取消',
+      type: 'danger'
+    })
+    if (!ok) return
+  }
+
+  form.groups = parsed.map((g, i) => ({ name: g.name, sortOrder: i + 1, memberIds: g.memberIds }))
+  let msg = `已导入 ${form.groups.length} 组`
+  if (unknown.length) msg += `；未识别姓名：${unknown.join('、')}`
+  importHint.value = msg
+  toast.success('分组已更新，可继续逐人微调')
+}
+
 const canSubmit = computed(() => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(form.startDate)) return false
   if (form.groups.length < 1) return false
@@ -178,10 +257,14 @@ const onSubmit = async () => {
 <style lang="scss" scoped>
 .dialog-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   z-index: 9500;
   background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -267,6 +350,55 @@ const onSubmit = async () => {
 }
 
 .meta-hint { font-size: 11px; color: $text-muted; }
+
+.batch-import {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px dashed $border-strong;
+  border-radius: 8px;
+  background: $bg-page;
+}
+
+.batch-import-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.batch-import-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.batch-import-hint {
+  font-size: 11px;
+  color: $text-muted;
+}
+
+.batch-import-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-family: $font-body;
+  font-size: 12px;
+  line-height: 1.5;
+  color: $text-primary;
+  background: $bg-card;
+  border: 1px solid $border-base;
+  border-radius: 6px;
+  outline: none;
+  resize: vertical;
+  &:focus { border-color: $accent; box-shadow: 0 0 0 3px $accent-soft; }
+}
+
+.batch-import-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
 .group-list {
   display: flex;

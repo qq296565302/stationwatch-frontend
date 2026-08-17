@@ -190,11 +190,11 @@
                   <div class="preview-cell">13:40</div>
                 </div>
                 <div class="preview-section-title">其他事项</div>
-                <div class="preview-row">
+                <div class="preview-row preview-full-row">
                   <div class="preview-cell">下午雷阵雨，电网负荷较平日下降约15%</div>
                 </div>
                 <div class="preview-section-title">遗留问题</div>
-                <div class="preview-row">
+                <div class="preview-row preview-full-row">
                   <div class="preview-cell">马尚二线#12-#15杆塔区段电缆头存在发热隐患</div>
                 </div>
               </div>
@@ -838,6 +838,7 @@ onMounted(() => {
   border: 1px solid #e0e0e0;
 
   &.preview-title-row { grid-template-columns: 1fr; }
+  &.preview-full-row { grid-template-columns: 1fr; }
   &.preview-table-row { grid-template-columns: 40px 60px 1fr 60px; }
 }
 

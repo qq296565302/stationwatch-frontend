@@ -161,7 +161,12 @@ export const useAppStore = defineStore('app', {
     sidebarCollapsed: false,
     // 全局字体缩放：1 默认 / 1.5 大 / 2 巨大（持久化，刷新保持）
     fontScale: Number(localStorage.getItem('dutyguard_font_scale')) || 1,
-    currentTime: getCurrentTime()
+    currentTime: getCurrentTime(),
+
+    // 是否该温和提示"修改默认密码"（登录时由后端判定，一周内不重复、admin 不提示）
+    shouldPromptPasswordChange: false,
+    // 全局修改密码弹窗开关（Sidebar 与提示横幅共用）
+    changePasswordDialogVisible: false
   }),
 
   getters: {
@@ -375,6 +380,8 @@ export const useAppStore = defineStore('app', {
       this.isLoggedIn = true
       this.currentStationId = user.stationId
       this.systemConfig.stationName = user.stationName || this.systemConfig.stationName
+      // 后端判断"是否该提示修改默认密码"（一周内不重复、admin 不提示）
+      this.shouldPromptPasswordChange = !!data.shouldPromptPasswordChange
       setAuth({
         user: data.user,
         accessToken: data.accessToken,
@@ -428,6 +435,18 @@ export const useAppStore = defineStore('app', {
 
     async changePassword(oldPassword, newPassword) {
       await api.put('/auth/password', { oldPassword, newPassword })
+      // 已主动修改密码：清除"需改默认密码"提醒
+      this.shouldPromptPasswordChange = false
+    },
+
+    // 温和提示横幅：关闭本次会话的提醒（下次登录由后端按一周频率再次判定）
+    dismissPasswordPrompt() {
+      this.shouldPromptPasswordChange = false
+    },
+
+    // 打开修改密码弹窗（供提示横幅跳转复用）
+    openChangePasswordDialog() {
+      this.changePasswordDialogVisible = true
     },
 
     // 用户列表（管理员/所长接口，按当前站点）
@@ -917,9 +936,16 @@ export const useAppStore = defineStore('app', {
       this.sidebarCollapsed = !this.sidebarCollapsed
     },
 
-    // 设置全局字体缩放（1 / 1.5 / 2），并持久化到 localStorage
-    setFontScale(scale) {
+    // 设置全局字体缩放（1 / 1.5 / 2），并持久化到 localStorage。
+    // 通过修改 <html> 的 --font-scale（font-size 缩放）实现，不影响 position:fixed 弹窗定位
+    // （区别于 zoom/transform，它们会创建 CSS 包含块、破坏弹窗 fixed 定位）。
+    applyFontScale(scale) {
       this.fontScale = scale
+      document.documentElement.style.setProperty('--font-scale', String(scale))
+    },
+
+    setFontScale(scale) {
+      this.applyFontScale(scale)
       localStorage.setItem('dutyguard_font_scale', String(scale))
     },
 

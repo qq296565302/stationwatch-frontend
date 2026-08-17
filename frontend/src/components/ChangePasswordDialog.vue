@@ -1,62 +1,62 @@
 <template>
-  <transition name="dialog">
+  <transition name="dialog" :duration="250">
     <div v-if="visible" class="dialog-overlay" @click.self="onCancel">
-      <div class="dialog">
-        <div class="dialog-header">
-          <h3 class="dialog-title">修改密码</h3>
-          <button class="dialog-close" type="button" @click="onCancel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
+        <div class="dialog">
+          <div class="dialog-header">
+            <h3 class="dialog-title">修改密码</h3>
+            <button class="dialog-close" type="button" @click="onCancel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
 
-        <div class="dialog-body">
-          <div class="field">
-            <label class="field-label">原密码 <span class="req">*</span></label>
-            <input
-              v-model="form.oldPassword"
-              type="password"
-              class="field-input"
-              placeholder="当前使用的密码"
-              autocomplete="current-password"
-              @keydown.enter="onSubmit"
-            />
+          <div class="dialog-body">
+            <div class="field">
+              <label class="field-label">原密码 <span class="req">*</span></label>
+              <input
+                v-model="form.oldPassword"
+                type="password"
+                class="field-input"
+                placeholder="当前使用的密码"
+                autocomplete="current-password"
+                @keydown.enter="onSubmit"
+              />
+            </div>
+            <div class="field">
+              <label class="field-label">新密码 <span class="req">*</span></label>
+              <input
+                v-model="form.newPassword"
+                type="password"
+                class="field-input"
+                placeholder="至少 6 位"
+                autocomplete="new-password"
+                @keydown.enter="onSubmit"
+              />
+            </div>
+            <div class="field">
+              <label class="field-label">确认新密码 <span class="req">*</span></label>
+              <input
+                v-model="form.confirm"
+                type="password"
+                class="field-input"
+                placeholder="再次输入新密码"
+                autocomplete="new-password"
+                @keydown.enter="onSubmit"
+              />
+            </div>
+            <p class="change-tip">修改成功后需使用新密码重新登录。</p>
           </div>
-          <div class="field">
-            <label class="field-label">新密码 <span class="req">*</span></label>
-            <input
-              v-model="form.newPassword"
-              type="password"
-              class="field-input"
-              placeholder="至少 6 位"
-              autocomplete="new-password"
-              @keydown.enter="onSubmit"
-            />
-          </div>
-          <div class="field">
-            <label class="field-label">确认新密码 <span class="req">*</span></label>
-            <input
-              v-model="form.confirm"
-              type="password"
-              class="field-input"
-              placeholder="再次输入新密码"
-              autocomplete="new-password"
-              @keydown.enter="onSubmit"
-            />
-          </div>
-          <p class="change-tip">修改成功后需使用新密码重新登录。</p>
-        </div>
 
-        <div class="dialog-actions">
-          <button class="btn btn-ghost" type="button" @click="onCancel">取消</button>
-          <button class="btn btn-primary" type="button" :disabled="!canSubmit" @click="onSubmit">
-            确认修改
-          </button>
+          <div class="dialog-actions">
+            <button class="btn btn-ghost" type="button" @click="onCancel">取消</button>
+            <button class="btn btn-primary" type="button" :disabled="!canSubmit" @click="onSubmit">
+              确认修改
+            </button>
+          </div>
         </div>
       </div>
-    </div>
   </transition>
 </template>
 
@@ -111,10 +111,14 @@ const onSubmit = async () => {
 <style lang="scss" scoped>
 .dialog-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   z-index: 9500;
   background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;

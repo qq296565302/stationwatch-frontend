@@ -1,5 +1,5 @@
 <template>
-  <transition name="toast">
+  <transition name="toast" :duration="250">
     <div v-if="visible" class="toast" :class="`toast-${type}`" role="alert">
       <div class="toast-icon">
         <svg v-if="type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

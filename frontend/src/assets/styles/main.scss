@@ -9,6 +9,14 @@
   padding: 0;
 }
 
+html {
+  // 根字体基准：默认 16px，字体放大时通过 --font-scale 调整（如 1.5 → 24px）。
+  // 所有 $fs-*（rem 单位）字号随之缩放；font-size 不创建 CSS 包含块，
+  // 因此不影响 position:fixed 弹窗定位（区别于 zoom/transform）。
+  --font-scale: 1;
+  font-size: calc(16px * var(--font-scale));
+}
+
 html, body, #app {
   height: 100%;
   width: 100%;

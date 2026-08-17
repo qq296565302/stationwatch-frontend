@@ -104,19 +104,22 @@
 
               <div class="field">
                 <label class="field-label">值班人员</label>
-                <div class="readonly-display">
-                  <div
-                    v-for="o in todayDutyOfficers"
-                    :key="o.id"
-                    class="readonly-member"
+                <div class="officer-picker">
+                  <button
+                    v-for="u in candidates"
+                    :key="u.id"
+                    type="button"
+                    class="officer-btn"
+                    :class="{ active: isOfficerSelected(u.id) }"
+                    @click="toggleOfficer(u.id)"
                   >
-                    <div class="user-avatar">{{ avatarOf(o.realName) }}</div>
-                    <div class="user-info">
-                      <div class="user-name">{{ o.realName }}</div>
-                      <div class="user-meta">{{ o.isMe ? '本人' : '值班员' }}</div>
-                    </div>
-                  </div>
+                    <span class="officer-dot"></span>
+                    {{ u.realName }}
+                    <span v-if="String(u.id) === String(store.user.id)" class="officer-me">本人</span>
+                  </button>
                 </div>
+                <span v-if="candidates.length === 0" class="field-hint">本所暂无值班员，请先在系统配置中添加</span>
+                <span v-else class="field-hint">默认带出排班名单，换班请按实际值班人员调整</span>
               </div>
 
               <div class="field">
@@ -228,19 +231,22 @@
 
               <div class="field">
                 <label class="field-label">值班人员</label>
-                <div class="readonly-display">
-                  <div
-                    v-for="o in todayDutyOfficers"
-                    :key="o.id"
-                    class="readonly-member"
+                <div class="officer-picker">
+                  <button
+                    v-for="u in candidates"
+                    :key="u.id"
+                    type="button"
+                    class="officer-btn"
+                    :class="{ active: isOfficerSelected(u.id) }"
+                    @click="toggleOfficer(u.id)"
                   >
-                    <div class="user-avatar">{{ avatarOf(o.realName) }}</div>
-                    <div class="user-info">
-                      <div class="user-name">{{ o.realName }}</div>
-                      <div class="user-meta">{{ o.isMe ? '本人' : '值班员' }}</div>
-                    </div>
-                  </div>
+                    <span class="officer-dot"></span>
+                    {{ u.realName }}
+                    <span v-if="String(u.id) === String(store.user.id)" class="officer-me">本人</span>
+                  </button>
                 </div>
+                <span v-if="candidates.length === 0" class="field-hint">本所暂无值班员，请先在系统配置中添加</span>
+                <span v-else class="field-hint">默认带出排班名单，换班请按实际值班人员调整</span>
               </div>
 
               <div class="field">
@@ -401,7 +407,8 @@ const formData = reactive({
   station: store.systemConfig.stationName,
   dutyItems: [createEmptyItem()],
   otherMatters: '',
-  pendingIssues: ''
+  pendingIssues: '',
+  dutyOfficerIds: []
 })
 
 const setDateOption = (opt) => {
@@ -429,17 +436,44 @@ const todayDutyOfficers = computed(() => {
   }]
 })
 
-// 中文名取最后一个字作头像，英文取首字母大写
-const avatarOf = (name) => {
-  const n = (name || '').trim()
-  if (!n) return '?'
-  const ch = n[n.length - 1]
-  return /[一-龥]/.test(ch) ? ch : ch.toUpperCase()
+// ---- 实际值班人员：可编辑多选（默认带出排班名单，换班按实际调整） ----
+// 用户是否已手动调整过（手动后不再被排班名单覆盖）
+const officersTouched = ref(false)
+// 编辑模式：记录本身已存实际人员时，不再被排班名单覆盖
+const hasActualOfficers = ref(false)
+
+// 候选值班员（本所可值班用户，与排班弹窗同源）
+const candidates = computed(() => store.users.filter(u =>
+  ['duty_officer', 'supervisor'].includes(u.role) && u.stationId === store.currentStationId
+))
+const isOfficerSelected = (id) => formData.dutyOfficerIds.includes(Number(id))
+const toggleOfficer = (id) => {
+  const nid = Number(id)
+  officersTouched.value = true
+  formData.dutyOfficerIds = formData.dutyOfficerIds.includes(nid)
+    ? formData.dutyOfficerIds.filter(x => x !== nid)
+    : [...formData.dutyOfficerIds, nid]
 }
+
+// 排班名单就绪 / 切换日期后，若用户未手动调整，把默认人员同步为当天排班名单
+watch(() => todayDutyOfficers.value, (list) => {
+  if (officersTouched.value) return
+  // 编辑模式：已有实际人员则保留；无实际人员时不预填推断值（提交空数组→后端存 null→展示回退排班），
+  // 避免把「最新排班反算/当前登录用户」这类推断值写死进历史记录
+  if (isEdit.value) {
+    if (hasActualOfficers.value) return
+    formData.dutyOfficerIds = []
+    return
+  }
+  // 新建模式：默认带出当天排班名单（未命中排班回退当前登录用户）
+  formData.dutyOfficerIds = list.map(o => Number(o.id))
+}, { immediate: true })
 
 onMounted(async () => {
   // 加载排班表（从昨天起覆盖 8 天），用于第一步显示当天值班班组
   store.fetchScheduleTable({ from: yesterdayISO, days: 8 })
+  // 候选值班员兜底（系统配置页已加载过则跳过）
+  if (!store.users.length) store.fetchUsers()
 
   if (isEdit.value) {
     try {
@@ -468,6 +502,11 @@ onMounted(async () => {
         formData.otherMatters = record.otherMatters || ''
         // 只回填未解决的遗留问题；已解决条目由后端合并保留（编辑不会丢）
         formData.pendingIssues = record.pendingText || ''
+        // 实际值班人员：记录已存则回填，否则保持排班名单（watch 同步）
+        if (record.dutyOfficerIds && record.dutyOfficerIds.length) {
+          formData.dutyOfficerIds = record.dutyOfficerIds.map(Number)
+          hasActualOfficers.value = true
+        }
         formDirty.value = false
       } else {
         toast.error('记录不存在')
@@ -558,7 +597,8 @@ const handleSubmit = async () => {
       customerSatisfied: !!i.customerSatisfied
     })),
     otherMatters: formData.otherMatters,
-    pendingIssues: formData.pendingIssues
+    pendingIssues: formData.pendingIssues,
+    dutyOfficerIds: formData.dutyOfficerIds
   }
 
   try {
@@ -704,44 +744,55 @@ const getWeatherLabel = (key) => {
   font-family: $font-body;
 }
 
-.readonly-display {
+.officer-picker {
   display: flex;
-  align-items: center;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 6px;
   padding: 8px 12px;
   background: $bg-page;
   border: 1px solid $border-base;
   border-radius: 6px;
 }
 
-.readonly-member {
-  display: flex;
+.officer-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 10px 4px 4px;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: $text-secondary;
   background: $bg-card;
   border: 1px solid $border-base;
-  border-radius: 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 120ms ease;
+
+  .officer-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: $text-muted;
+  }
+
+  &:hover {
+    border-color: $border-strong;
+    color: $text-primary;
+  }
+
+  &.active {
+    background: $accent-soft;
+    border-color: $accent;
+    color: $accent;
+    .officer-dot { background: $accent; }
+  }
 }
 
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: $primary;
-  color: $text-inverse;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
+.officer-me {
+  font-size: 10px;
+  color: $accent;
   font-weight: 600;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
-
-.user-info { display: flex; flex-direction: column; }
-.user-name { font-size: 13px; font-weight: 500; color: $text-primary; }
-.user-meta { font-size: 11px; color: $text-muted; margin-top: 1px; }
 
 // ===== 值班日期（今天 / 昨天） =====
 .date-picker {

@@ -39,15 +39,20 @@ import Toast from '@/components/Toast.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import DutyReminderDialog from '@/components/DutyReminderDialog.vue'
 import PendingIssuesDialog from '@/components/PendingIssuesDialog.vue'
+import { useAppStore } from '@/store'
 import { useToast } from '@/composables/useToast'
 import { useOrderReminder } from '@/composables/useOrderReminder'
 import { usePendingReminder } from '@/composables/usePendingReminder'
 import { useDutyReminder } from '@/composables/useDutyReminder'
 
 const route = useRoute()
+const store = useAppStore()
 const useLayout = computed(() => route.meta.layout !== 'blank')
 
 const { toasts, remove } = useToast()
+
+// 应用已持久化的字体缩放（刷新后恢复），并作为弹窗 fixed 定位不依赖 zoom/transform 的前提
+store.applyFontScale(store.fontScale)
 
 // 全局临近超时提醒（弹窗 + 警报声）
 useOrderReminder()

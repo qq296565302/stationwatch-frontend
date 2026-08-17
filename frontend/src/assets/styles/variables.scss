@@ -53,20 +53,23 @@ $info:           #3b82f6;
 $info-soft:      #eff6ff;
 
 // ---- 字体 (Typography) ----
+// 字号使用 rem，基于根元素 <html> 的 font-size（默认 16px）。
+// 字体放大时仅修改 <html> 的 font-size（如 1.5x → 24px），所有 rem 字号随之放大；
+// 不产生 CSS 包含块（无 zoom/transform），因此不破坏 position:fixed 弹窗定位。
 $font-display:   'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
 $font-body:      'Noto Sans SC', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 $font-mono:      'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 
-$fs-xs:   11px;
-$fs-sm:   12px;
-$fs-base: 13px;
-$fs-md:   14px;
-$fs-lg:   16px;
-$fs-xl:   18px;
-$fs-2xl:  22px;
-$fs-3xl:  28px;
-$fs-4xl:  36px;
-$fs-5xl:  48px;
+$fs-xs:   0.6875rem;   // 11px
+$fs-sm:   0.75rem;     // 12px
+$fs-base: 0.8125rem;   // 13px
+$fs-md:   0.875rem;    // 14px
+$fs-lg:   1rem;        // 16px
+$fs-xl:   1.125rem;    // 18px
+$fs-2xl:  1.375rem;    // 22px
+$fs-3xl:  1.75rem;     // 28px
+$fs-4xl:  2.25rem;     // 36px
+$fs-5xl:  3rem;        // 48px
 
 $fw-regular:  400;
 $fw-medium:   500;

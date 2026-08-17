@@ -70,8 +70,8 @@
       <span class="expand-avatar-text">{{ avatarChar }}</span>
     </button>
 
-    <!-- 修改密码弹窗 -->
-    <ChangePasswordDialog v-model:visible="showChangePassword" />
+    <!-- 修改密码弹窗（全局状态，供用户菜单与"改默认密码"提示横幅共用） -->
+    <ChangePasswordDialog v-model:visible="store.changePasswordDialogVisible" />
   </aside>
 </template>
 
@@ -93,11 +93,10 @@ const confirm = useConfirm()
 const userMenuOpen = ref(false)
 const closeUserMenu = () => { userMenuOpen.value = false }
 
-// 修改密码弹窗
-const showChangePassword = ref(false)
+// 修改密码弹窗（使用 store 全局状态，便于提示横幅复用）
 const openChangePassword = () => {
   userMenuOpen.value = false
-  showChangePassword.value = true
+  store.changePasswordDialogVisible = true
 }
 
 // 点击外部关闭菜单

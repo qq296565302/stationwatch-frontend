@@ -1,38 +1,38 @@
 <template>
-  <transition name="dialog">
+  <transition name="dialog" :duration="250">
     <div v-if="state.visible" class="dialog-overlay" @click.self="onCancel">
-      <div class="dialog" :class="`dialog-${state.type}`" role="alertdialog">
-        <div class="dialog-icon" :class="`dialog-icon-${state.type}`">
-          <svg v-if="state.type === 'danger'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-        </div>
-        <div class="dialog-content">
-          <div class="dialog-title">{{ state.title }}</div>
-          <div class="dialog-message">{{ state.message }}</div>
-        </div>
-        <div class="dialog-actions">
-          <button class="btn btn-ghost" @click="onCancel" type="button">
-            {{ state.cancelText }}
-          </button>
-          <button
-            class="btn"
-            :class="state.type === 'danger' ? 'btn-danger' : 'btn-primary'"
-            @click="onConfirm"
-            type="button"
-          >
-            {{ state.confirmText }}
-          </button>
+        <div class="dialog" :class="`dialog-${state.type}`" role="alertdialog">
+          <div class="dialog-icon" :class="`dialog-icon-${state.type}`">
+            <svg v-if="state.type === 'danger'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <div class="dialog-content">
+            <div class="dialog-title">{{ state.title }}</div>
+            <div class="dialog-message">{{ state.message }}</div>
+          </div>
+          <div class="dialog-actions">
+            <button class="btn btn-ghost" @click="onCancel" type="button">
+              {{ state.cancelText }}
+            </button>
+            <button
+              class="btn"
+              :class="state.type === 'danger' ? 'btn-danger' : 'btn-primary'"
+              @click="onConfirm"
+              type="button"
+            >
+              {{ state.confirmText }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
   </transition>
 </template>
 
@@ -47,10 +47,14 @@ const onCancel = () => close(false)
 <style lang="scss" scoped>
 .dialog-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   z-index: 9500;
   background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;

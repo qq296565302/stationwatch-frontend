@@ -4,8 +4,9 @@
     <div class="layout-main">
       <TopBar class="layout-header" />
       <main class="layout-content">
-        <!-- 缩放包装层：字体放大时仅在内容区内滚动，不产生页面级滚动条 -->
-        <div class="layout-content-inner" :style="{ zoom: store.fontScale }">
+        <!-- 内容包装层：仅做内边距，不使用 zoom/transform（zoom/transform 会创建 CSS 包含块，
+             破坏 position:fixed 弹窗定位）。字体放大由 .layout-content 的 font-size 实现。 -->
+        <div class="layout-content-inner">
           <router-view v-slot="{ Component }">
             <transition name="page" mode="out-in">
               <component :is="Component" />
@@ -14,6 +15,9 @@
         </div>
       </main>
     </div>
+
+    <!-- 温和提示：仍在使用默认密码时顶部横幅（可跳过，一周内不重复，admin 不提示） -->
+    <PasswordChangePrompt />
   </div>
 </template>
 
@@ -21,6 +25,7 @@
 import { useAppStore } from '@/store'
 import Sidebar from './Sidebar.vue'
 import TopBar from './TopBar.vue'
+import PasswordChangePrompt from './PasswordChangePrompt.vue'
 
 const store = useAppStore()
 </script>

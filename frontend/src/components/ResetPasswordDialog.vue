@@ -1,5 +1,5 @@
 <template>
-  <transition name="dialog">
+  <transition name="dialog" :duration="250">
     <div v-if="visible" class="dialog-overlay" @click.self="onCancel">
       <div class="dialog">
         <div class="dialog-header">
@@ -96,10 +96,14 @@ const onSubmit = async () => {
 <style lang="scss" scoped>
 .dialog-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   z-index: 9500;
   background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;

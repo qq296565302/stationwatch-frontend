@@ -1,5 +1,5 @@
 <template>
-  <transition name="dialog">
+  <transition name="dialog" :duration="250">
     <!-- 列表弹窗为信息展示：可点遮罩关闭（区别于强制提醒 DutyReminderDialog） -->
     <div v-if="dialog.visible" class="pending-overlay" @click.self="dismiss">
       <div class="pending-dialog" role="dialog" aria-modal="true">
@@ -60,10 +60,14 @@ const go = (item) => {
 <style lang="scss" scoped>
 .pending-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   z-index: 9500;
   background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
