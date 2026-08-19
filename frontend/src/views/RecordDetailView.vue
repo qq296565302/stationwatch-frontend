@@ -38,6 +38,19 @@
           </svg>
           编辑
         </button>
+        <button
+          v-if="store.isAdmin"
+          class="btn btn-ghost delete-record-btn"
+          @click="handleDelete"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            <line x1="10" y1="11" x2="10" y2="17"/>
+            <line x1="14" y1="11" x2="14" y2="17"/>
+          </svg>
+          删除记录
+        </button>
       </template>
     </PageHeader>
 
@@ -453,6 +466,19 @@
               </svg>
               编辑
             </button>
+            <button
+              v-if="record && store.canEditRecordFor(record)"
+              class="btn btn-ghost delete-item-btn"
+              @click="handleDeleteItem(detailItem)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"/>
+                <line x1="14" y1="11" x2="14" y2="17"/>
+              </svg>
+              删除工单
+            </button>
           </div>
         </aside>
       </transition>
@@ -624,6 +650,52 @@ const handleExport = async () => {
   }
 }
 
+// 删除记录（仅超级管理员）：三次确认后删除（值班数据重要，防误删），
+// 级联删除该记录下所有工单，成功后返回列表。
+// 连续弹出确认框，过渡动画用 250ms；每步确认间留一点间隔保证对话框过渡完整。
+const delay = (ms) => new Promise((r) => setTimeout(r, ms))
+
+const handleDelete = async () => {
+  const r = record.value
+
+  // 第 1 次确认
+  const ok1 = await confirm.open({
+    title: '删除值班记录',
+    message: `确认删除 ${formatDate(r.recordDate)} 的值班记录？\n该记录共 ${validItemCount.value} 项工单。`,
+    confirmText: '继续',
+    type: 'danger'
+  })
+  if (!ok1) return
+  await delay(250)
+
+  // 第 2 次确认
+  const ok2 = await confirm.open({
+    title: '再次确认删除',
+    message: '删除后，该值班记录及其全部工单将被永久移除，无法恢复。\n确定继续吗？',
+    confirmText: '继续',
+    type: 'danger'
+  })
+  if (!ok2) return
+  await delay(250)
+
+  // 第 3 次确认
+  const ok3 = await confirm.open({
+    title: '最后一次确认',
+    message: `即将永久删除 ${formatDate(r.recordDate)} 的值班记录（${validItemCount.value} 项工单）。\n此操作不可撤销，确定删除？`,
+    confirmText: '确认删除',
+    type: 'danger'
+  })
+  if (!ok3) return
+
+  try {
+    await store.deleteRecord(r.id)
+    toast.success('值班记录已删除')
+    router.push('/records')
+  } catch (e) {
+    toast.error(e.message || '删除失败')
+  }
+}
+
 // 处理结果字典选项
 const resultOptions = computed(() => store.dictionaries.results.map(d => d.label))
 
@@ -727,6 +799,25 @@ const goEditFromDrawer = () => {
   router.push(`/records/${id}/edit`)
 }
 
+// 删除单条工单：二次确认后删除该条工单，值班记录及其他工单保留
+const handleDeleteItem = async (item) => {
+  if (!record.value || !item) return
+  const ok = await confirm.open({
+    title: '删除工单',
+    message: `确认删除工单「${item.businessType || ''}」？\n该条工单将被永久移除，值班记录及其余工单不受影响。`,
+    confirmText: '确认删除',
+    type: 'danger'
+  })
+  if (!ok) return
+  try {
+    await store.removeDutyItem(record.value.id, item.id)
+    closeItemDetail()
+    toast.success('工单已删除')
+  } catch (e) {
+    toast.error(e.message || '删除失败')
+  }
+}
+
 // 进入页面：拉最新详情
 const loadDetail = async () => {
   loading.value = true
@@ -749,6 +840,18 @@ watch(() => route.params.id, (id) => { if (id) loadDetail() })
 
 <style lang="scss" scoped>
 .record-detail-root { display: contents; }
+
+// 删除按钮：红色警示（删除记录仅超管；删除工单需编辑权限）
+.delete-record-btn,
+.delete-item-btn {
+  color: $crit;
+
+  &:hover:not(:disabled) {
+    background: $crit-soft;
+    color: $crit;
+  }
+}
+
 .record-detail-view {
   max-width: 1400px;
   margin: 0 auto;
