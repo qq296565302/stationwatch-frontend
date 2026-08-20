@@ -433,11 +433,15 @@ const setDateOption = (opt) => {
   formData.recordDate = displayOf(iso)
 }
 
-// 值班人员 = 当天排班班组；未命中排班时回退为当前登录用户
+// 值班人员 = 当天排班班组（支持同一天多个班次，合并所有到岗组）；未命中排班时回退为当前登录用户
 const todayDutyOfficers = computed(() => {
   const row = store.scheduleTable.find(r => r.date === formData.recordDateISO)
-  if (row && row.members && row.members.length) {
-    return row.members.map(m => ({
+  const groups = row && Array.isArray(row.groups) && row.groups.length
+    ? row.groups
+    : (row && row.members && row.members.length ? [{ members: row.members }] : [])
+  const list = groups.flatMap(g => g.members || [])
+  if (list.length) {
+    return list.map(m => ({
       id: m.id,
       realName: m.realName,
       isMe: String(m.id) === String(store.user.id)

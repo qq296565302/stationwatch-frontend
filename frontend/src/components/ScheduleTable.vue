@@ -16,7 +16,16 @@
           <span :class="isWeekend(row.weekday) ? 'text-warn' : 'text-secondary'">{{ row.weekday }}</span>
         </td>
         <td>
-          <span class="tag" :class="row.date === highlightDate ? 'tag-ok' : 'tag-info'">{{ row.groupName }}</span>
+          <!-- 支持同一天多个班次（不同值班间隔的组周期重合时） -->
+          <template v-if="rowGroups(row).length">
+            <span
+              v-for="(g, gi) in rowGroups(row)"
+              :key="gi"
+              class="tag"
+              :class="row.date === highlightDate ? 'tag-ok' : 'tag-info'"
+            >{{ g.name }}</span>
+          </template>
+          <span v-else class="tag tag-muted">休息</span>
           <span v-if="row.date === highlightDate" class="tag-today">今日</span>
         </td>
         <td class="font-mono text-secondary">
@@ -24,9 +33,9 @@
         </td>
         <td>
           <div class="member-list">
-            <template v-if="row.members && row.members.length">
+            <template v-if="rowGroups(row).length">
               <span
-                v-for="m in row.members"
+                v-for="m in rowMembers(row)"
                 :key="m.id"
                 class="member-chip"
                 :class="{ 'chip-me': isHighlighted(m.id) }"
@@ -70,6 +79,17 @@ const avatarOf = (name) => {
 }
 
 const isWeekend = (w) => w === '周六' || w === '周日'
+
+// 当天到岗的班次列表：优先用新结构 row.groups（多班次），否则回退单组结构
+const rowGroups = (row) => {
+  if (!row) return []
+  if (Array.isArray(row.groups) && row.groups.length) return row.groups
+  if (row.groupName && (row.members || []).length) {
+    return [{ name: row.groupName, members: row.members }]
+  }
+  return []
+}
+const rowMembers = (row) => rowGroups(row).flatMap(g => g.members || [])
 </script>
 
 <style lang="scss" scoped>

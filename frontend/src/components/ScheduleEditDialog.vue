@@ -15,21 +15,25 @@
         <div class="dialog-body">
           <div class="schedule-meta">
             <div class="field">
-              <label class="field-label">起始日期（第 1 组从这天开始）</label>
+              <label class="field-label">起始日期（从这天开始铺排）</label>
               <input v-model="form.startDate" type="date" class="field-input font-mono" />
             </div>
-            <div class="meta-info">
-              <span class="tag tag-info">当前 {{ form.groups.length }} 组 · {{ form.groups.length }} 天一轮</span>
-              <span class="meta-hint">每组分值一天，按序循环</span>
+            <div class="field">
+              <label class="field-label">默认值班间隔（天/次）</label>
+              <input v-model.number="form.cycleDays" type="number" min="1" max="60" class="field-input font-mono" />
             </div>
+          </div>
+          <div class="meta-hint">
+            <span class="tag tag-info">当前 {{ form.groups.length }} 组</span>
+            <span>每个组可单独设置「每几天值一次」，新组默认用上面的间隔；批量导入可用「组名@间隔：成员」指定各组的间隔</span>
           </div>
 
           <div class="batch-import">
             <div class="batch-import-head">
               <span class="batch-import-title">批量导入分组</span>
-              <span class="batch-import-hint">每行一组「组名：成员1、成员2」，组名可省略</span>
+              <span class="batch-import-hint">每行一组「组名@间隔：成员1、成员2」，组名和间隔可省略</span>
             </div>
-            <textarea v-model="importText" class="batch-import-input" rows="4" placeholder="第1组：张三、李四、王五&#10;第2组：赵六、孙七、周八"></textarea>
+            <textarea v-model="importText" class="batch-import-input" rows="4" placeholder="第1组@4：张三、李四、王五&#10;第2组@6：赵六、孙七、周八"></textarea>
             <div class="batch-import-actions">
               <button class="btn btn-secondary btn-sm" type="button" :disabled="!importText.trim()" @click="applyImport">解析并应用</button>
               <span v-if="importHint" class="batch-import-hint">{{ importHint }}</span>
@@ -40,7 +44,11 @@
             <div v-for="(g, gi) in form.groups" :key="gi" class="group-card">
               <div class="group-head">
                 <input v-model="g.name" class="group-name-input" maxlength="50" placeholder="组名" />
-                <span class="group-day font-mono">第 {{ gi + 1 }} 天</span>
+                <div class="group-interval">
+                  <span class="group-interval-label">间隔</span>
+                  <input v-model="g.intervalDays" type="number" min="1" max="60" class="group-interval-input font-mono" />
+                  <span class="group-interval-unit">天/次</span>
+                </div>
                 <button class="btn btn-ghost btn-sm" type="button" :disabled="form.groups.length <= 1" @click="removeGroup(gi)">
                   删除组
                 </button>
@@ -101,34 +109,37 @@ const store = useAppStore()
 const toast = useToast()
 const confirm = useConfirm()
 
-const form = reactive({ startDate: '', groups: [] })
+const form = reactive({ startDate: '', cycleDays: 5, groups: [] })
 
 // 候选值班员（值班员 + 所长均可值班，仅限当前站点）
 const dutyOfficers = computed(() => store.users.filter(u =>
   ['duty_officer', 'supervisor'].includes(u.role) && u.stationId === store.currentStationId
 ))
 
-// 打开时按当前配置初始化
+// 打开时按当前配置初始化（immediate 覆盖挂载时即已打开的场景）
 watch(() => props.visible, (v) => {
   if (!v) return
   const cfg = store.scheduleConfig
-  const cycleDays = cfg.cycleDays || 5
+  const cycleDays = Number(cfg.cycleDays) >= 1 ? Number(cfg.cycleDays) : 5
   let groups
   if (cfg.configured && cfg.groups.length) {
     groups = cfg.groups.map(g => ({
       name: g.name,
       sortOrder: g.sortOrder,
-      memberIds: (g.members || []).map(m => m.id)
+      memberIds: (g.members || []).map(m => m.id),
+      intervalDays: g.intervalDays || cycleDays
     }))
   } else {
-    groups = []
+    // 默认创建「间隔天数」个空组：组数=间隔时正好每天一组、无休息（保持原有体验），
+    // 用户可自行增删组或改各组间隔（增组→某些天多组，减组→出现休息天）
+    groups = Array.from({ length: cycleDays }, (_, i) => ({
+      name: `第${i + 1}组`, sortOrder: i + 1, memberIds: [], intervalDays: cycleDays
+    }))
   }
-  // 保证组数 = 周期天数
-  while (groups.length < cycleDays) groups.push({ name: `第${groups.length + 1}组`, sortOrder: groups.length + 1, memberIds: [] })
-  if (groups.length > cycleDays) groups = groups.slice(0, cycleDays)
   form.startDate = cfg.startDate || getCurrentDateISO()
+  form.cycleDays = cycleDays
   form.groups = groups
-})
+}, { immediate: true })
 
 const isIn = (g, uId) => g.memberIds.includes(uId)
 const takenByOther = (uId, gi) =>
@@ -143,7 +154,12 @@ const toggleMember = (g, uId) => {
   else g.memberIds.push(uId)
 }
 const addGroup = () => {
-  form.groups.push({ name: `第${form.groups.length + 1}组`, sortOrder: form.groups.length + 1, memberIds: [] })
+  form.groups.push({
+    name: `第${form.groups.length + 1}组`,
+    sortOrder: form.groups.length + 1,
+    memberIds: [],
+    intervalDays: form.cycleDays
+  })
 }
 const removeGroup = (gi) => {
   if (form.groups.length <= 1) return
@@ -167,11 +183,18 @@ const applyImport = async () => {
     .filter(Boolean)
     .forEach((line) => {
       let name = ''
+      let intervalDays = form.cycleDays
       let membersText = line
       const colonIdx = line.search(/[：:]/)
       if (colonIdx >= 0) {
         name = line.slice(0, colonIdx).trim()
         membersText = line.slice(colonIdx + 1)
+      }
+      // 组名后可用「@间隔」指定该组的值班间隔，如「第1组@4：成员」；未指定则用默认间隔
+      const atMatch = name.match(/^(.+?)@(\d{1,2})$/)
+      if (atMatch) {
+        name = atMatch[1].trim()
+        intervalDays = Number(atMatch[2])
       }
       const memberIds = []
       membersText
@@ -183,7 +206,7 @@ const applyImport = async () => {
           if (id) { if (!memberIds.includes(id)) memberIds.push(id) }
           else if (!unknown.includes(mn)) unknown.push(mn)
         })
-      parsed.push({ name: name || `第${parsed.length + 1}组`, sortOrder: parsed.length + 1, memberIds })
+      parsed.push({ name: name || `第${parsed.length + 1}组`, sortOrder: parsed.length + 1, memberIds, intervalDays })
     })
 
   if (!parsed.length) { importHint.value = '未解析到任何分组，请检查格式'; return }
@@ -209,7 +232,7 @@ const applyImport = async () => {
     if (!ok) return
   }
 
-  form.groups = parsed.map((g, i) => ({ name: g.name, sortOrder: i + 1, memberIds: g.memberIds }))
+  form.groups = parsed.map((g, i) => ({ name: g.name, sortOrder: i + 1, memberIds: g.memberIds, intervalDays: g.intervalDays ?? form.cycleDays }))
   let msg = `已导入 ${form.groups.length} 组`
   if (unknown.length) msg += `；未识别姓名：${unknown.join('、')}`
   importHint.value = msg
@@ -220,7 +243,10 @@ const canSubmit = computed(() => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(form.startDate)) return false
   if (form.groups.length < 1) return false
   if (form.groups.some(g => !g.name.trim())) return false
-  if (form.groups.some(g => g.memberIds.length === 0)) return false
+  // 默认值班间隔须为 1-60 的整数
+  if (!Number.isInteger(Number(form.cycleDays)) || Number(form.cycleDays) < 1 || Number(form.cycleDays) > 60) return false
+  // 每组值班间隔须为 1-60 的整数（memberIds 允许为空，空组到岗时无人值班）
+  if (form.groups.some(g => !Number.isInteger(Number(g.intervalDays)) || Number(g.intervalDays) < 1 || Number(g.intervalDays) > 60)) return false
   // 跨组重复检查
   const all = new Set()
   for (const g of form.groups) {
@@ -238,11 +264,12 @@ const onSubmit = async () => {
   try {
     await store.updateScheduleConfig({
       startDate: form.startDate,
-      cycleDays: form.groups.length,
+      cycleDays: Number(form.cycleDays),
       groups: form.groups.map((g, i) => ({
         name: g.name.trim(),
         sortOrder: i + 1,
-        memberIds: g.memberIds
+        memberIds: g.memberIds,
+        intervalDays: Number(g.intervalDays) || Number(form.cycleDays)
       }))
     })
     toast.success('排班已保存')
@@ -342,14 +369,15 @@ const onSubmit = async () => {
   .field { flex: 1; }
 }
 
-.meta-info {
+.meta-hint {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-bottom: 2px;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: $text-muted;
+  line-height: 1.5;
 }
-
-.meta-hint { font-size: 11px; color: $text-muted; }
 
 .batch-import {
   display: flex;
@@ -437,6 +465,36 @@ const onSubmit = async () => {
   font-size: 11px;
   color: $text-muted;
   white-space: nowrap;
+}
+
+.group-interval {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.group-interval-label {
+  font-size: 11px;
+  color: $text-muted;
+}
+
+.group-interval-input {
+  width: 52px;
+  padding: 4px 6px;
+  font-size: 12px;
+  text-align: center;
+  color: $text-primary;
+  background: $bg-page;
+  border: 1px solid $border-base;
+  border-radius: 6px;
+  outline: none;
+  &:focus { border-color: $accent; box-shadow: 0 0 0 3px $accent-soft; }
+}
+
+.group-interval-unit {
+  font-size: 11px;
+  color: $text-muted;
 }
 
 .group-members {

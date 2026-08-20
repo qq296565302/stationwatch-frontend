@@ -198,8 +198,8 @@
                 <span class="summary-value font-mono">{{ store.scheduleConfig.startDate }}</span>
               </div>
               <div class="summary-item">
-                <span class="summary-label">轮换周期</span>
-                <span class="summary-value font-mono">{{ store.scheduleConfig.cycleDays }} 天/轮</span>
+                <span class="summary-label">默认间隔</span>
+                <span class="summary-value font-mono">{{ store.scheduleConfig.cycleDays }} 天/次</span>
               </div>
               <div class="summary-item">
                 <span class="summary-label">班组数量</span>

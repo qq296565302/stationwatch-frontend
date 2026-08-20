@@ -52,8 +52,13 @@ export function useDutyReminder() {
     if (recRes.value != null) return
 
     // 排班判定：今日排班命中本人 → 弹；无今日排班行 + 值班员 → 回退弹
+    // 支持同一天多个班次：取当天所有到岗组的人员合并判断
     const row = store.scheduleTable.find(r => r.date === today)
-    const inRow = row && row.members && row.members.some(m => String(m.id) === String(store.user.id))
+    const groups = row && Array.isArray(row.groups) && row.groups.length
+      ? row.groups
+      : (row && row.members && row.members.length ? [{ members: row.members }] : [])
+    const allMembers = groups.flatMap(g => g.members || [])
+    const inRow = allMembers.some(m => String(m.id) === String(store.user.id))
     const shouldPop = inRow || (!row && store.user.role === 'duty_officer')
     if (!shouldPop) return
 
