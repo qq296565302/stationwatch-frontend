@@ -5,7 +5,7 @@ import { getAuth } from '@/api/client'
 const routes = [
   {
     path: '/',
-    redirect: '/dashboard'
+    redirect: () => useAppStore().defaultPath
   },
   {
     path: '/login',
@@ -26,6 +26,12 @@ const routes = [
     meta: { title: '值班记录', icon: 'list' }
   },
   {
+    path: '/overview',
+    name: 'Overview',
+    component: () => import('@/views/OverviewView.vue'),
+    meta: { title: '全站概览', icon: 'chart', roles: ['admin', 'district_admin'] }
+  },
+  {
     path: '/records/create',
     name: 'RecordCreate',
     component: () => import('@/views/CreateRecordView.vue'),
@@ -44,6 +50,12 @@ const routes = [
     meta: { title: '编辑记录', hidden: true }
   },
   {
+    path: '/records/:recordId/items/create',
+    name: 'ItemCreate',
+    component: () => import('@/views/ItemCreateView.vue'),
+    meta: { title: '添加值班事项', hidden: true }
+  },
+  {
     path: '/export',
     name: 'Export',
     component: () => import('@/views/ExportView.vue'),
@@ -57,7 +69,7 @@ const routes = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/dashboard'
+    redirect: () => useAppStore().defaultPath
   }
 ]
 
@@ -72,9 +84,9 @@ router.beforeEach(async (to, from, next) => {
     ? `${to.meta.title} · 供电所值守云平台`
     : '供电所值守云平台'
 
-  // 登录页：已登录则直接进 dashboard（用 localStorage 实时判断，401 跳转后 store 可能未同步）
+  // 登录页：已登录则直接进默认落地页（用 localStorage 实时判断，401 跳转后 store 可能未同步）
   if (to.name === 'Login') {
-    if (store.isLoggedIn && getAuth().accessToken) next({ name: 'Dashboard' })
+    if (store.isLoggedIn && getAuth().accessToken) next(store.defaultPath)
     else next()
     return
   }

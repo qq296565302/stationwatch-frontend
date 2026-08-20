@@ -793,6 +793,7 @@ onMounted(() => {
   &.dot-error { background: $crit; }
   &.dot-record { background: $accent; }
   &.dot-locked { background: $warn; }
+  &.dot-export { background: $primary; }
 }
 .activity-content { flex: 1; }
 .activity-text {

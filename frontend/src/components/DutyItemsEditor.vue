@@ -59,7 +59,7 @@
               </div>
 
               <div class="field">
-                <label class="field-label field-label-required">业务类型</label>
+                <label class="field-label">业务类型</label>
                 <ComboboxInput
                   v-model="item.businessType"
                   :options="businessTypeOptions"
@@ -68,7 +68,7 @@
               </div>
 
               <div class="field field-full">
-                <label class="field-label field-label-required">受理内容</label>
+                <label class="field-label">受理内容</label>
                 <ComboboxInput
                   v-model="item.content"
                   :options="acceptContentOptions"
@@ -78,7 +78,7 @@
               </div>
 
               <div class="field">
-                <label class="field-label field-label-required">客户名称</label>
+                <label class="field-label">客户名称</label>
                 <input
                   v-model="item.customerName"
                   type="text"
@@ -88,7 +88,7 @@
               </div>
 
               <div class="field">
-                <label class="field-label field-label-required">联系电话</label>
+                <label class="field-label">联系电话</label>
                 <input
                   v-model="item.customerPhone"
                   type="tel"
@@ -103,7 +103,7 @@
               </div>
 
               <div class="field field-full">
-                <label class="field-label field-label-required">联系地址</label>
+                <label class="field-label">联系地址</label>
                 <input
                   v-model="item.customerAddress"
                   type="text"
@@ -112,13 +112,9 @@
                 />
               </div>
 
-              <div class="field">
-                <label class="field-label field-label-required">办理人员</label>
-                <ComboboxInput
-                  v-model="item.handler"
-                  :options="handlerOptions"
-                  placeholder="选择或输入..."
-                />
+              <div class="field field-full">
+                <label class="field-label">办理人员</label>
+                <OfficerMultiSelect v-model="item.handler" :candidates="handlerOptions" />
               </div>
             </div>
 
@@ -175,7 +171,7 @@
             <div class="item-actions">
               <div class="action-left">
                 <button
-                  v-if="!item.isCompleted && isItemValid(item)"
+                  v-if="!item.isCompleted && item.content"
                   class="btn btn-primary btn-sm"
                   @click="markComplete(item)"
                 >
@@ -191,9 +187,6 @@
                 >
                   重新编辑
                 </button>
-                <span v-else-if="!isItemValid(item)" class="text-muted" style="font-size:12px">
-                  请补全必填项后标记完成
-                </span>
               </div>
               <button
                 class="btn btn-icon"
@@ -234,6 +227,7 @@ const MAX_ITEMS = 1000
 import { ref, watch, computed } from 'vue'
 import ComboboxInput from '@/components/ComboboxInput.vue'
 import TimePicker from '@/components/TimePicker.vue'
+import OfficerMultiSelect from '@/components/OfficerMultiSelect.vue'
 import { useAppStore } from '@/store'
 import { getCurrentTime } from '@/data/mockData'
 import { getTodayISO } from '@/utils/orderTimeout'
@@ -241,7 +235,9 @@ import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
   modelValue: { type: Array, required: true },
-  recordDate: { type: String, default: '' }
+  recordDate: { type: String, default: '' },
+  // 所属供电所：办理人员候选按该站点过滤（避免列出全库人员）
+  stationId: { type: Number, default: null }
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -256,7 +252,15 @@ const businessTypeOptions = computed(() =>
 )
 const acceptContentOptions = computed(() => store.dictionaries.acceptContents.map(d => d.label))
 const resultOptions = computed(() => store.dictionaries.results.map(d => d.label))
-const handlerOptions = computed(() => store.dictionaries.officers.map(o => o.label))
+// 办理人员候选：按所属站点拉取该所值班员（避免列出全库人员）
+const handlerOptions = ref([])
+const loadOfficers = async () => {
+  const sid = props.stationId ?? store.currentStationId
+  if (!sid) { handlerOptions.value = []; return }
+  const officers = await store.fetchOfficersByStation(sid)
+  handlerOptions.value = officers.map(o => o.label)
+}
+watch(() => props.stationId, loadOfficers, { immediate: true })
 
 // 本地 items 引用
 const items = computed({
@@ -333,10 +337,6 @@ const onItemInput = (item) => {
 
 // ---- 验证 ----
 const isPhoneValid = (phone) => /^1[3-9]\d{9}$/.test(phone)
-const isItemValid = (item) => {
-  return !!(item.businessType && item.content && item.customerName &&
-    isPhoneValid(item.customerPhone) && item.customerAddress && item.handler)
-}
 
 // ---- 完成/取消完成 ----
 // 需求：只要选择了处理结果，即表示该工单标记完成
@@ -349,12 +349,8 @@ watch(items, (list) => {
   })
 }, { deep: true })
 
-// 需求：点击「标记完成」必须先选择处理结果
+// 标记完成：无必填项要求（已移除"必须先选择处理结果"的限制），自动补全时间
 const markComplete = (item) => {
-  if (!item.result || !item.result.trim()) {
-    toast.error('请先选择处理结果')
-    return
-  }
   if (!item.acceptTime) item.acceptTime = getCurrentTime()
   if (!item.endTime) item.endTime = getCurrentTime()
   item.isCompleted = true

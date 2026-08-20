@@ -251,6 +251,7 @@ POST /api/v1/users
 |---|---|---|---|
 | GET | `/api/v1/records?startDate=&endDate=&stationId=&status=&page=&pageSize=&sortBy=&sortOrder=` | Bearer | 分页查询 |
 | GET | `/api/v1/records/today` | Bearer | 当天记录（按当前用户站点） |
+| GET | `/api/v1/records/overview?startDate=&endDate=` | Bearer | **跨站聚合看板**（各供电所总览，按用户可见站点范围聚合） |
 | GET | `/api/v1/records/find-by-date?date=YYYY-MM-DD` | Bearer | 按日期查找 |
 | GET | `/api/v1/records/:id` | Bearer | 详情 |
 | POST | `/api/v1/records` | Officer+ | **智能 upsert** |
@@ -354,6 +355,68 @@ POST /api/v1/records
 - `complete` 会强制将 `endTime` 设为当前 HH:MM，即使前端传了也不采用
 - 添加工单时 `acceptTime` 自动 = 当前 HH:MM
 - 工单数受 `station.maxDutyItemsPerRecord`（默认 11）限制
+
+---
+
+#### 核心接口：GET /api/v1/records/overview 跨站聚合看板
+
+**用途**：市级超管 / 区县管理员在主控台查看"各供电所总览"，一次性返回可见范围内全部站点的关键指标、跨站趋势与业务类型分布，避免前端逐站轮询。
+
+**鉴权**：Bearer（所有登录用户可调，后端按用户角色收敛可见站点范围）
+- `admin`：全部站点
+- `district_admin`：仅本区县站点（`station.districtId === user.districtId`）
+- 其他角色：仅当前站点（单站语义，前端该区块仅在 `canSwitchStation` 角色下渲染）
+
+**请求参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `startDate` | string | 是 | 区间起始 `YYYY-MM-DD` |
+| `endDate` | string | 是 | 区间结束 `YYYY-MM-DD` |
+
+**业务口径**（与单站统计 `efficiencyMetrics` 一致）：
+- 工单 = 值班记录中 `content` 非空的 `dutyItems`
+- `done` = `isCompleted` 为真的工单
+- `overdue`：未完成且从受理起超过站点 `orderTimeLimit`，或已完成但处理耗时超时限（同 `utils/orderTimeout.js` 口径）
+- `trend` 按天聚合 `total / done / pending`；区间内缺日由前端补齐 0
+- `businessTypes` 按 `businessType` 分组统计 `value / done`
+
+**响应**（`data` 字段）：
+```json
+{
+  "totals": {
+    "total": 128,
+    "done": 110,
+    "completion": 86,
+    "overdue": 5,
+    "overdueRate": 4,
+    "stationCount": 2
+  },
+  "stations": [
+    {
+      "stationId": 1,
+      "stationName": "马尚供电所",
+      "districtId": 1,
+      "region": "张店供电中心",
+      "total": 80,
+      "done": 70,
+      "completion": 88,
+      "overdue": 2
+    }
+  ],
+  "trend": [
+    { "date": "2026-08-01", "total": 10, "done": 9, "pending": 1 }
+  ],
+  "businessTypes": [
+    { "label": "故障报修", "value": 60, "done": 55 }
+  ]
+}
+```
+
+> **注意**：
+> - `stations[].districtId` 为站点所属区县 id，前端据此关联 `/districts` 的区县名称做分组展示（与 TopBar 站点切换器的分组一致）；若后端不返回 `districtId`，前端回退使用 `stations[].region`（区县名）分组。
+> - `completion`/`overdueRate` 为百分比整数。前端对缺失字段有兜底补齐逻辑（`completion` 由 `done/total` 计算、`totals` 由 `stations` 汇总、`stationCount` 缺省取 `stations.length`），后端可省略可推导字段。
+> - 若后端未实现该接口，前端会自动回退为"逐站调 `GET /records` 再本地聚合"，看板功能不受影响。
 
 ---
 

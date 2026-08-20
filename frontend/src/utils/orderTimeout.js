@@ -17,6 +17,20 @@ export const getTodayISO = () => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
+// 值班班次归属日期 YYYY-MM-DD
+// 班次为「当日 08:30 ~ 次日 08:30」：当前时刻在 00:00~08:30 之间时，归属**前一天**班次
+// （凌晨仍是前一个班组的实际值班时段，避免取到次日的下一个班组）
+export const getShiftDateISO = () => {
+  const d = new Date()
+  const h = d.getHours()
+  const m = d.getMinutes()
+  if (h < 8 || (h === 8 && m < 30)) {
+    d.setDate(d.getDate() - 1)
+  }
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
 // 本地时区当前时间 HH:MM
 export const getNowHM = () => {
   const d = new Date()

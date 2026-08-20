@@ -122,7 +122,8 @@ const handleLogin = async () => {
     // 登录后预拉字典（业务表单依赖）
     store.fetchDictionaries()
     toast.success(`欢迎回来，${store.user.realName}`, '登录成功')
-    router.push('/dashboard')
+    // 超级管理员 → 全站概览，其他角色 → 主控台
+    router.push(store.defaultPath)
   } catch (e) {
     toast.error(e.message || '登录失败，请检查用户名和密码', '登录失败')
   } finally {

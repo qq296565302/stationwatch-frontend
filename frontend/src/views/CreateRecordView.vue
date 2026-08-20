@@ -86,7 +86,7 @@
               </div>
 
               <div class="field">
-                <label class="field-label field-label-required">天气情况</label>
+                <label class="field-label">天气情况</label>
                 <div class="weather-picker">
                   <button
                     v-for="w in store.weatherOptions"
@@ -135,16 +135,28 @@
         <div v-else-if="currentStep === 1" key="step1" class="card form-card">
           <div class="step-panel">
             <div class="step-head">
-              <div>
-                <h2 class="step-title">值班事项</h2>
-                <p class="step-desc">添加客户报修/业务工单，每条工单独立记录处理过程</p>
-              </div>
-              <div class="step-counter font-mono">
-                {{ formData.dutyItems.length }} 条
-              </div>
+            <div>
+              <h2 class="step-title">值班事项</h2>
+              <p class="step-desc">添加客户报修/业务工单，每条工单独立记录处理过程</p>
+            </div>
+            <div class="step-counter font-mono">
+              {{ formData.dutyItems.length }} 条
+            </div>
             </div>
 
-            <DutyItemsEditor v-model="formData.dutyItems" :record-date="formData.recordDateISO" />
+            <DutyItemsEditor v-model="formData.dutyItems" :record-date="formData.recordDateISO" :station-id="formData.stationId || store.currentStationId" />
+
+            <div v-if="validItemCount === 0" class="empty-item-hint">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <circle cx="12" cy="12" r="9"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <div class="empty-item-hint-text">
+                <b>本日没有工单可以留空</b>
+                <span>当天无客户报修或业务工单时，无需添加任何事项。直接点击下方「下一步」，在「其他事项」中填写备注后保存即可，不会影响记录生成。</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -213,7 +225,7 @@
               </div>
 
               <div class="field">
-                <label class="field-label field-label-required">天气情况</label>
+                <label class="field-label">天气情况</label>
                 <div class="weather-picker">
                   <button
                     v-for="w in store.weatherOptions"
@@ -280,7 +292,7 @@
         </button>
         <transition name="card-collapse">
           <div v-show="!cardsCollapsed.items" class="card-body">
-            <DutyItemsEditor v-model="formData.dutyItems" :record-date="formData.recordDateISO" />
+            <DutyItemsEditor v-model="formData.dutyItems" :record-date="formData.recordDateISO" :station-id="formData.stationId || store.currentStationId" />
           </div>
         </transition>
       </div>
@@ -344,8 +356,8 @@ import StepIndicator from '@/components/StepIndicator.vue'
 import DutyItemsEditor from '@/components/DutyItemsEditor.vue'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
-import { getCurrentDateISO, getCurrentTime } from '@/data/mockData'
-import { toMinutes, getTodayISO, getNowHM } from '@/utils/orderTimeout'
+import { getCurrentTime } from '@/data/mockData'
+import { toMinutes, getTodayISO, getShiftDateISO, getNowHM } from '@/utils/orderTimeout'
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -394,7 +406,9 @@ const displayOf = (iso) => {
   const [y, m, d] = iso.split('-')
   return `${y}年${Number(m)}月${Number(d)}日`
 }
-const todayISO = getCurrentDateISO()
+// 新建记录默认「今日」用班次归属日期：班次为当日08:30~次日08:30，
+// 凌晨（<08:30）归属前一天班次，避免取到次日的下一个值班班组
+const todayISO = getShiftDateISO()
 const _yesterday = new Date()
 _yesterday.setDate(_yesterday.getDate() - 1)
 const yesterdayISO = isoOf(_yesterday)
@@ -472,8 +486,9 @@ watch(() => todayDutyOfficers.value, (list) => {
 onMounted(async () => {
   // 加载排班表（从昨天起覆盖 8 天），用于第一步显示当天值班班组
   store.fetchScheduleTable({ from: yesterdayISO, days: 8 })
-  // 候选值班员兜底（系统配置页已加载过则跳过）
-  if (!store.users.length) store.fetchUsers()
+  // 候选值班员兜底（系统配置页已加载过则跳过）。
+  // 普通值班员无 /users 用户列表接口权限（后端 403），值班人员默认走排班/本人，无需拉取，跳过以免产生 403
+  if (!store.users.length && store.user.role !== 'duty_officer') store.fetchUsers()
 
   if (isEdit.value) {
     try {
@@ -524,8 +539,7 @@ const validItemCount = computed(() => formData.dutyItems.filter(i => i.content).
 const completedCount = computed(() => formData.dutyItems.filter(i => i.isCompleted).length)
 
 const canGoNext = computed(() => {
-  if (currentStep.value === 0) return !!formData.weather && !!formData.station
-  if (currentStep.value === 1) return validItemCount.value > 0
+  // 已移除所有必填项校验，各步骤均可直接下一步
   return true
 })
 
@@ -550,22 +564,8 @@ const handleCancel = async () => {
 }
 
 const handleSubmit = async () => {
-  // 过滤：只保留有内容的工单
+  // 过滤：只保留有内容的工单（无必填校验，允许只填部分字段保存）
   const validItems = formData.dutyItems.filter(i => i.content)
-
-  // 不完整的工单提示
-  const isItemValid = (item) => !!(item.businessType && item.customerName &&
-    /^1[3-9]\d{9}$/.test(item.customerPhone) && item.customerAddress && item.handler)
-  const incomplete = validItems.filter(i => !isItemValid(i))
-  if (incomplete.length > 0) {
-    const ok = await confirm.open({
-      title: '工单未完成',
-      message: `${incomplete.length} 个工单存在未填必填项，是否继续提交？`,
-      confirmText: '继续提交',
-      cancelText: '返回修改'
-    })
-    if (!ok) return
-  }
 
   // 受理时间不允许晚于当前时刻（仅当天记录校验；历史记录补录不受限）
   if (formData.recordDateISO === getTodayISO()) {
@@ -587,10 +587,10 @@ const handleSubmit = async () => {
       acceptTime: i.acceptTime || null,
       businessType: i.businessType,
       content: i.content,
-      customerName: i.customerName,
-      customerPhone: i.customerPhone,
-      customerAddress: i.customerAddress,
-      handler: i.handler,
+      customerName: i.customerName || null,
+      customerPhone: i.customerPhone || null,
+      customerAddress: i.customerAddress || null,
+      handler: i.handler || null,
       endTime: i.endTime || null,
       result: i.result || '',
       isCompleted: !!i.isCompleted,
@@ -708,6 +708,35 @@ const getWeatherLabel = (key) => {
   color: $text-muted;
 
   &-warn { color: $warn; }
+}
+
+.empty-item-hint {
+  margin-top: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  background: $accent-soft;
+  border: 1px solid $accent-border;
+  border-radius: 8px;
+  color: $accent;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+}
+.empty-item-hint-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: $text-secondary;
+
+  b { color: $accent; font-weight: 600; }
 }
 
 .field-input,

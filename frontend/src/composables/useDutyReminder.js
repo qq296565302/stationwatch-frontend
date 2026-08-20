@@ -8,7 +8,7 @@
 // ========================================
 import { reactive, watch, onUnmounted } from 'vue'
 import { useAppStore } from '@/store'
-import { getTodayISO } from '@/utils/orderTimeout'
+import { getShiftDateISO } from '@/utils/orderTimeout'
 
 // 模块级单例：弹窗显隐状态（与 ConfirmDialog 同款驱动方式，由 App.vue 挂载的组件消费）
 const dialog = reactive({
@@ -35,10 +35,12 @@ export function useDutyReminder() {
     if (evaluating) return
     evaluating = true
 
+    // 值班班次为当日08:30~次日08:30，凌晨归属前一天班次：用班次日期取记录与排班
+    const today = getShiftDateISO()
     // 并行容错拉取：绝不因本功能抛错影响页面
     const [recRes] = await Promise.allSettled([
-      store.fetchTodayRecord(),
-      store.fetchScheduleTable({ from: getTodayISO(), days: 1 })
+      store.fetchRecordByDate(today),
+      store.fetchScheduleTable({ from: today, days: 1 })
     ])
     evaluating = false
 
@@ -50,7 +52,6 @@ export function useDutyReminder() {
     if (recRes.value != null) return
 
     // 排班判定：今日排班命中本人 → 弹；无今日排班行 + 值班员 → 回退弹
-    const today = getTodayISO()
     const row = store.scheduleTable.find(r => r.date === today)
     const inRow = row && row.members && row.members.some(m => String(m.id) === String(store.user.id))
     const shouldPop = inRow || (!row && store.user.role === 'duty_officer')

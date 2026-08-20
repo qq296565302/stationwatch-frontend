@@ -107,6 +107,8 @@ export const useAppStore = defineStore('app', {
 
     // 用户列表（系统配置-值班员管理）
     users: [],
+    // 按站点缓存的值班员名单（办理人员候选）：{ [stationId]: [{label, username}] }
+    stationOfficers: {},
     // 站点列表（新增/编辑值班员时选择所属站点；已按角色可见范围过滤）
     stations: [],
     // 区县列表（组织层级：市级→区县→供电所）
@@ -173,6 +175,10 @@ export const useAppStore = defineStore('app', {
     // ===== 角色权限辅助（供路由/按钮显隐复用） =====
     isAdmin(state) { return state.user.role === 'admin' },
     isDistrictAdmin(state) { return state.user.role === 'district_admin' },
+    // 登录后默认落地页：超级管理员 → 全站概览，其他角色 → 主控台
+    defaultPath(state) {
+      return state.user.role === 'admin' ? '/overview' : '/dashboard'
+    },
     // 可在站点间切换：市级超管（全市）与区县管理员（本区县）
     canSwitchStation(state) { return ['admin', 'district_admin'].includes(state.user.role) },
     // 可管理站点/账号：市级超管与区县管理员
@@ -203,6 +209,15 @@ export const useAppStore = defineStore('app', {
       }
       return state.user.role !== 'duty_officer' ||
         (record && record.creatorId === state.user.id)
+    },
+    // 新增值班事项权限：所有值班员/所长/管理员均可在记录中添加工单（不限创建人）；
+    // 区县管理员无权；锁定记录仅超级管理员可操作
+    canAddItemToRecord: (state) => (record) => {
+      if (state.user.role === 'district_admin') return false
+      if (record && record.status === 'locked') {
+        return state.user.role === 'admin'
+      }
+      return true
     },
 
     // 今日值班：仅命中今天（本地日期）的 active 记录，避免昨天记录顶替显示
@@ -603,21 +618,45 @@ export const useAppStore = defineStore('app', {
       return this.scheduleTable
     },
 
+    // ============ 值班员名单（办理人员候选，按站点） ============
+    // 按指定站点拉取该所值班员（对登录用户开放，不受 /users 权限限制），并缓存
+    async fetchOfficersByStation(stationId) {
+      if (!stationId) return []
+      if (this.stationOfficers[stationId]) return this.stationOfficers[stationId]
+      try {
+        const resp = await api.get('/dictionaries/officers', { params: { stationId } })
+        const data = resp.data || resp
+        const list = (Array.isArray(data) ? data : []).map(o => ({
+          label: typeof o === 'string' ? o : (o?.label ?? o?.realName ?? ''),
+          username: typeof o === 'string' ? o : (o?.username ?? '')
+        })).filter(o => o.label)
+        this.stationOfficers[stationId] = list
+        return list
+      } catch {
+        return []
+      }
+    },
+
     // ============ 字典 ============
     async fetchDictionaries(force = false) {
       if (this.dictionariesLoaded && !force) return
-      const [bt, ac, rs, of, wo] = await Promise.all([
+      // 用 allSettled：单个字典接口（如 officers 对普通值班员 403）失败不影响其它字典加载，
+      // 避免一个接口 403 导致 dictionariesLoaded 永不置位、每次导航重复请求
+      const results = await Promise.allSettled([
         api.get('/dictionaries/business-types'),
         api.get('/dictionaries/accept-contents'),
         api.get('/dictionaries/results'),
         api.get(`/dictionaries/officers${this.currentStationId ? '?stationId=' + this.currentStationId : ''}`),
         api.get('/dictionaries/weather-options')
       ])
-      this.dictionaries.businessTypes  = bt.data || bt || []
-      this.dictionaries.acceptContents = ac.data || ac || []
-      this.dictionaries.results        = rs.data || rs || []
-      this.dictionaries.officers       = of.data || of || []
-      const wopt = wo.data || wo
+      const pick = (i, fallback) => results[i].status === 'fulfilled'
+        ? (results[i].value?.data ?? results[i].value ?? fallback)
+        : fallback
+      this.dictionaries.businessTypes  = pick(0, [])
+      this.dictionaries.acceptContents = pick(1, [])
+      this.dictionaries.results        = pick(2, [])
+      this.dictionaries.officers       = pick(3, [])
+      const wopt = pick(4, this.weatherOptions)
       if (Array.isArray(wopt) && wopt.length) this.weatherOptions = wopt
       this.dictionariesLoaded = true
     },
@@ -713,6 +752,155 @@ export const useAppStore = defineStore('app', {
         })
       })
       return out
+    },
+
+    // ============ 跨站聚合看板（各供电所总览） ============
+    // 优先调用后端聚合接口 /records/overview；后端未实现时回退为前端逐站拉取再本地汇总。
+    // 返回 shape（与后端接口约定一致）：
+    // {
+    //   totals: { total, done, completion, overdue, overdueRate, stationCount },
+    //   stations: [{ stationId, stationName, region, total, done, completion, overdue }],
+    //   trend:    [{ date, total, done, pending }],
+    //   businessTypes: [{ label, value, done }]
+    // }
+    async fetchStationOverview(startDate, endDate) {
+      // ---- 主路径：后端聚合接口 ----
+      try {
+        const resp = await api.get('/records/overview', { params: { startDate, endDate } })
+        const data = resp?.data ?? resp
+        if (data && (Array.isArray(data.stations) || Array.isArray(data.trend))) {
+          return this._normalizeOverview(data)
+        }
+        throw new Error('overview fallback')
+      } catch {
+        // ---- 兜底：前端逐站拉取聚合 ----
+        return this._aggregateOverviewLocally(startDate, endDate)
+      }
+    },
+
+    // 后端返回的聚合数据规范化（补齐缺失字段，保证视图消费结构稳定）
+    _normalizeOverview(data) {
+      const stations = (data.stations || []).map(s => {
+        const total = Number(s.total) || 0
+        const done = Number(s.done) || 0
+        return {
+          stationId: s.stationId ?? s.id,
+          stationName: s.stationName ?? s.name ?? '',
+          // 区县归属：优先用 districtId 关联 store.districts，缺失时回退 region（区县名）
+          districtId: s.districtId ?? s.district_id ?? null,
+          region: s.region ?? s.districtName ?? '',
+          total,
+          done,
+          completion: s.completion != null ? Number(s.completion) : this._completionOf(done, total),
+          overdue: Number(s.overdue) || 0
+        }
+      })
+      const trend = (data.trend || []).map(t => ({
+        date: t.date,
+        total: Number(t.total) || 0,
+        done: Number(t.done) || 0,
+        pending: Number(t.pending) || 0
+      })).sort((a, b) => a.date.localeCompare(b.date))
+      const businessTypes = (data.businessTypes || []).map(b => ({
+        label: b.label ?? b.businessType ?? '未分类',
+        value: Number(b.value) || 0,
+        done: Number(b.done) || 0
+      })).sort((a, b) => b.value - a.value)
+      const totals = data.totals || this._totalsOf(stations, trend, businessTypes)
+      const tDone = Number(totals.done) || 0
+      const tTotal = Number(totals.total) || 0
+      return {
+        totals: {
+          total: tTotal,
+          done: tDone,
+          completion: totals.completion != null ? Number(totals.completion) : this._completionOf(tDone, tTotal),
+          overdue: Number(totals.overdue) || 0,
+          overdueRate: Number(totals.overdueRate) || 0,
+          stationCount: Number(totals.stationCount) || stations.length
+        },
+        stations,
+        trend,
+        businessTypes
+      }
+    },
+
+    // 前端本地逐站聚合：遍历可见站点拉区间记录，汇总各站指标 + 趋势 + 业务分布
+    async _aggregateOverviewLocally(startDate, endDate) {
+      const stations = this.stations.length
+        ? this.stations.filter(s => s.isActive !== false)
+        : (this.currentStationId ? [{ id: this.currentStationId, name: this.systemConfig.stationName }] : [])
+
+      const results = await Promise.allSettled(stations.map(s =>
+        api.get('/records', { params: { stationId: s.id, startDate, endDate, pageSize: 500 } })
+      ))
+
+      const stationRows = []
+      const trendMap = new Map()
+      const typeMap = new Map()
+      const regionName = (s) => s.region || s.districtName || ''
+
+      results.forEach((res, i) => {
+        if (res.status !== 'fulfilled') return
+        const data = res.value?.data ?? res.value ?? null
+        const list = (data?.list || []).map(normalizeRecord)
+        const st = stations[i]
+        const limit = st.orderTimeLimit ?? 60
+
+        let total = 0, done = 0, overdue = 0
+        list.forEach(r => {
+          const items = (r.dutyItems || []).filter(it => it.content)
+          if (!trendMap.has(r.recordDate)) trendMap.set(r.recordDate, { date: r.recordDate, total: 0, done: 0, pending: 0 })
+          const bucket = trendMap.get(r.recordDate)
+          items.forEach(it => {
+            total++
+            bucket.total++
+            if (it.isCompleted) { done++; bucket.done++ }
+            else bucket.pending++
+            // 业务类型分布
+            const k = it.businessType || '未分类'
+            if (!typeMap.has(k)) typeMap.set(k, { label: k, value: 0, done: 0 })
+            typeMap.get(k).value++
+            if (it.isCompleted) typeMap.get(k).done++
+            // 超时判定（与单站效率统计同口径）
+            const toState = getItemTimeoutState(it, r.recordDate, limit)
+            if (toState && toState.state !== 'ok' && toState.state !== 'warning') overdue++
+          })
+        })
+        stationRows.push({
+          stationId: st.id,
+          stationName: st.name || '',
+          // 区县归属：优先 districtId，缺失时回退 region（区县名）
+          districtId: st.districtId ?? st.district_id ?? null,
+          region: regionName(st),
+          total,
+          done,
+          completion: this._completionOf(done, total),
+          overdue
+        })
+      })
+
+      const trend = Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+      const businessTypes = Array.from(typeMap.values()).sort((a, b) => b.value - a.value)
+      const totals = this._totalsOf(stationRows, trend, businessTypes)
+      return this._normalizeOverview({ totals, stations: stationRows, trend, businessTypes })
+    },
+
+    _completionOf(done, total) {
+      return total === 0 ? 0 : Math.round((done / total) * 100)
+    },
+
+    _totalsOf(stations, trend, businessTypes) {
+      const total = stations.reduce((s, x) => s + x.total, 0)
+      const done = stations.reduce((s, x) => s + x.done, 0)
+      const overdue = stations.reduce((s, x) => s + x.overdue, 0)
+      return {
+        total,
+        done,
+        completion: this._completionOf(done, total),
+        overdue,
+        overdueRate: total === 0 ? 0 : Math.round((overdue / total) * 100),
+        stationCount: stations.length
+      }
     },
 
     getRecordById(id) {
