@@ -157,9 +157,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/store'
+import { getShiftDateISO } from '@/utils/orderTimeout'
 import PageHeader from '@/components/PageHeader.vue'
 import StatCard from '@/components/StatCard.vue'
 import TrendChart from '@/components/TrendChart.vue'
@@ -183,10 +184,14 @@ const palette = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4
 const legendColor = (i) => palette[i % palette.length]
 
 // ===== 时间范围（与主控台一致） =====
-const today = new Date()
+// 当前班次归属日期：班次为当日08:30~次日08:30，凌晨(<08:30)归前一天。
+// 记录按班次日期归档，故统计范围统一用班次口径；并用本地时间拼 YYYY-MM-DD，
+// 避免 toISOString() 的 UTC 偏移（北京时间 00:00~08:00 会晚一天）。
+const todayISO = getShiftDateISO()
 const rangeBounds = computed(() => {
-  const start = new Date(today)
-  const end = new Date(today)
+  const [y, m, d] = todayISO.split('-').map(Number)
+  const start = new Date(y, m - 1, d)
+  const end = new Date(y, m - 1, d)
   if (range.value === 'today') {
     // 不变
   } else if (range.value === 'week') {
@@ -197,9 +202,11 @@ const rangeBounds = computed(() => {
   } else {
     start.setMonth(0, 1)
   }
+  const p = (n) => String(n).padStart(2, '0')
+  const iso = (dt) => `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
   return {
-    start: start.toISOString().slice(0, 10),
-    end: end.toISOString().slice(0, 10)
+    start: iso(start),
+    end: iso(end)
   }
 })
 const rangeMeta = computed(() => `${rangeBounds.value.start} → ${rangeBounds.value.end}`)
@@ -231,6 +238,9 @@ const loadData = async () => {
 }
 
 const refreshData = () => { loadData() }
+
+// 切换时间范围（今日/本周/本月/本年）时，重新拉取对应区间的全站汇总数据
+watch(range, () => { loadData() })
 
 // ===== 按区县分组 =====
 // 分组数据源：优先用 store.districts（后端 /districts，站点按 districtId 关联到区县 name），
@@ -287,8 +297,13 @@ const toggleRegion = (region) => {
 
 const rateClass = (rate) => rate >= 80 ? 'ok' : (rate >= 50 ? 'warn' : 'crit')
 
-// 跨站趋势：补齐区间缺日（0 单）
+// 跨站趋势：补齐区间缺失的数据点（0 单）
 const overviewTrend = computed(() => {
+  // 今日：后端/聚合已返回 24 小时时间轴，直接使用
+  if (overview.value.trend.length && /^\d{2}:\d{2}$/.test(overview.value.trend[0].date || '')) {
+    return overview.value.trend
+  }
+  // 非今日：按天补齐区间缺日
   const start = new Date(rangeBounds.value.start)
   const end = new Date(rangeBounds.value.end)
   const map = new Map(overview.value.trend.map(d => [d.date, d]))

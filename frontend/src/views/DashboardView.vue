@@ -386,8 +386,7 @@ import StatCard from '@/components/StatCard.vue'
 import TrendChart from '@/components/TrendChart.vue'
 import DonutChart from '@/components/DonutChart.vue'
 import ScheduleTable from '@/components/ScheduleTable.vue'
-import { getCurrentDateISO } from '@/data/mockData'
-import { getItemTimeoutState } from '@/utils/orderTimeout'
+import { getItemTimeoutState, getShiftDateISO } from '@/utils/orderTimeout'
 
 const store = useAppStore()
 const router = useRouter()
@@ -407,15 +406,17 @@ const dayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '
 const legendColor = (i) => palette[i % palette.length]
 
 // ===== 时间范围 =====
-const today = new Date()
-const todayISO = today.toISOString().slice(0, 10)
-// 排班用本地日期（避免 UTC 跨天偏移），未来 7 天
-const scheduleToday = getCurrentDateISO()
+// 当前班次归属日期：班次为当日08:30~次日08:30，凌晨(<08:30)归前一天。
+// 记录按班次日期归档，故统计/排班统一用班次口径；并用本地时间拼 YYYY-MM-DD，
+// 避免 toISOString() 的 UTC 偏移（北京时间 00:00~08:00 会晚一天）。
+const todayISO = getShiftDateISO()
+const scheduleToday = todayISO
 const dashboardDays = 7
 
 const rangeBounds = computed(() => {
-  const start = new Date(today)
-  const end = new Date(today)
+  const [y, m, d] = todayISO.split('-').map(Number)
+  const start = new Date(y, m - 1, d)
+  const end = new Date(y, m - 1, d)
   if (range.value === 'today') {
     // 不变
   } else if (range.value === 'week') {
@@ -426,9 +427,11 @@ const rangeBounds = computed(() => {
   } else {
     start.setMonth(0, 1)
   }
+  const p = (n) => String(n).padStart(2, '0')
+  const iso = (dt) => `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
   return {
-    start: start.toISOString().slice(0, 10),
-    end: end.toISOString().slice(0, 10)
+    start: iso(start),
+    end: iso(end)
   }
 })
 
@@ -457,7 +460,7 @@ const recordProgress = computed(() => {
 
 // ===== 问候 =====
 const greetingText = computed(() => {
-  const h = today.getHours()
+  const h = new Date().getHours()
   if (h < 6) return '夜深了，注意休息'
   if (h < 12) return '新的一天开始了'
   if (h < 14) return '中午好'

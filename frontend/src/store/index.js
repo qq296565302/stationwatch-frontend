@@ -7,7 +7,7 @@ import {
   getCurrentDateISO,
   getCurrentTime
 } from '@/data/mockData'
-import { toMinutes, getTodayISO, getNowHM, getItemTimeoutState } from '@/utils/orderTimeout'
+import { toMinutes, getTodayISO, getShiftDateISO, getNowHM, getItemTimeoutState } from '@/utils/orderTimeout'
 
 const STORAGE_KEY = 'dutyguard_auth'
 
@@ -175,9 +175,9 @@ export const useAppStore = defineStore('app', {
     // ===== 角色权限辅助（供路由/按钮显隐复用） =====
     isAdmin(state) { return state.user.role === 'admin' },
     isDistrictAdmin(state) { return state.user.role === 'district_admin' },
-    // 登录后默认落地页：超级管理员 → 全站概览，其他角色 → 主控台
+    // 登录后默认落地页：超级管理员 / 区县管理员 → 全站概览（本区县数据），其他角色 → 主控台
     defaultPath(state) {
-      return state.user.role === 'admin' ? '/overview' : '/dashboard'
+      return ['admin', 'district_admin'].includes(state.user.role) ? '/overview' : '/dashboard'
     },
     // 可在站点间切换：市级超管（全市）与区县管理员（本区县）
     canSwitchStation(state) { return ['admin', 'district_admin'].includes(state.user.role) },
@@ -220,14 +220,16 @@ export const useAppStore = defineStore('app', {
       return true
     },
 
-    // 今日值班：仅命中今天（本地日期）的 active 记录，避免昨天记录顶替显示
+    // 今日值班：命中「当前班次」的 active 记录。
+    // 班次为当日08:30~次日08:30，凌晨(<08:30)归属前一天班次，故用班次日期而非自然日，
+    // 否则凌晨新建的记录(recordDate=昨天)会找不到，导致今日值班卡片空白。
     activeRecord(state) {
-      return state.records.find(r => r.recordDate === getCurrentDateISO() && r.status === 'active')
+      return state.records.find(r => r.recordDate === getShiftDateISO() && r.status === 'active')
     },
     // 值班记录生命周期状态：当天=进行中，前一天=即将锁定（红色 crit），锁定/归档走原始状态
     recordDisplayStatus(state) {
-      const today = getCurrentDateISO()
-      const d = new Date()
+      const today = getShiftDateISO()
+      const d = new Date(today + 'T00:00:00')
       d.setDate(d.getDate() - 1)
       const p = (n) => String(n).padStart(2, '0')
       const yesterday = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
@@ -826,9 +828,13 @@ export const useAppStore = defineStore('app', {
 
     // 前端本地逐站聚合：遍历可见站点拉区间记录，汇总各站指标 + 趋势 + 业务分布
     async _aggregateOverviewLocally(startDate, endDate) {
-      const stations = this.stations.length
-        ? this.stations.filter(s => s.isActive !== false)
+      // 用 visibleStations（按角色过滤：admin 全部 / district_admin 本区县 / 其余当前站），
+      // 确保区县管理员只聚合本区县供电所的数据
+      const stations = this.visibleStations.length
+        ? this.visibleStations.filter(s => s.isActive !== false)
         : (this.currentStationId ? [{ id: this.currentStationId, name: this.systemConfig.stationName }] : [])
+      // 今日区间：趋势按小时（24h 时间轴）；非今日：按天
+      const byHour = startDate === endDate
 
       const results = await Promise.allSettled(stations.map(s =>
         api.get('/records', { params: { stationId: s.id, startDate, endDate, pageSize: 500 } })
@@ -849,9 +855,12 @@ export const useAppStore = defineStore('app', {
         let total = 0, done = 0, overdue = 0
         list.forEach(r => {
           const items = (r.dutyItems || []).filter(it => it.content)
-          if (!trendMap.has(r.recordDate)) trendMap.set(r.recordDate, { date: r.recordDate, total: 0, done: 0, pending: 0 })
-          const bucket = trendMap.get(r.recordDate)
           items.forEach(it => {
+            const key = byHour
+              ? (it.acceptTime ? `${it.acceptTime.slice(0, 2)}:00` : '00:00')
+              : r.recordDate
+            if (!trendMap.has(key)) trendMap.set(key, { date: key, total: 0, done: 0, pending: 0 })
+            const bucket = trendMap.get(key)
             total++
             bucket.total++
             if (it.isCompleted) { done++; bucket.done++ }
@@ -879,7 +888,17 @@ export const useAppStore = defineStore('app', {
         })
       })
 
-      const trend = Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+      let trend = Array.from(trendMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+      // 今日区间：补全 00:00-23:00 共 24 个点，形成完整的小时时间轴
+      if (byHour) {
+        const hourMap = new Map(trend.map(t => [t.date, t]))
+        const padded = []
+        for (let h = 0; h < 24; h++) {
+          const key = `${String(h).padStart(2, '0')}:00`
+          padded.push(hourMap.get(key) || { date: key, total: 0, done: 0, pending: 0 })
+        }
+        trend = padded
+      }
       const businessTypes = Array.from(typeMap.values()).sort((a, b) => b.value - a.value)
       const totals = this._totalsOf(stationRows, trend, businessTypes)
       return this._normalizeOverview({ totals, stations: stationRows, trend, businessTypes })
