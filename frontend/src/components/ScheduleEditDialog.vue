@@ -19,21 +19,21 @@
               <input v-model="form.startDate" type="date" class="field-input font-mono" />
             </div>
             <div class="field">
-              <label class="field-label">默认值班间隔（天/次）</label>
+              <label class="field-label">新队伍默认班次间隔（天/次）</label>
               <input v-model.number="form.cycleDays" type="number" min="1" max="60" class="field-input font-mono" />
             </div>
           </div>
           <div class="meta-hint">
-            <span class="tag tag-info">当前 {{ form.groups.length }} 组</span>
-            <span>每个组可单独设置「每几天值一次」，新组默认用上面的间隔；批量导入可用「组名@间隔：成员」指定各组的间隔</span>
+            <span class="tag tag-info">当前 {{ form.groups.length }} 支队伍</span>
+            <span>间隔相同的队伍构成一个班次（如间隔=6 的 A1..A6、间隔=4 的 B1..B4），每天每个班次各派一支队伍值班，各自按队伍顺序循环。批量导入可用「组名@间隔：成员」。</span>
           </div>
 
           <div class="batch-import">
             <div class="batch-import-head">
               <span class="batch-import-title">批量导入分组</span>
-              <span class="batch-import-hint">每行一组「组名@间隔：成员1、成员2」，组名和间隔可省略</span>
+              <span class="batch-import-hint">每行一支队伍「队伍名@间隔：成员1、成员2」，@间隔可省略</span>
             </div>
-            <textarea v-model="importText" class="batch-import-input" rows="4" placeholder="第1组@4：张三、李四、王五&#10;第2组@6：赵六、孙七、周八"></textarea>
+            <textarea v-model="importText" class="batch-import-input" rows="4" placeholder="A1@6：张三、李四&#10;A2@6：王五、赵六&#10;B1@4：孙七、周八&#10;B2@4：吴九、郑十"></textarea>
             <div class="batch-import-actions">
               <button class="btn btn-secondary btn-sm" type="button" :disabled="!importText.trim()" @click="applyImport">解析并应用</button>
               <span v-if="importHint" class="batch-import-hint">{{ importHint }}</span>
@@ -44,8 +44,8 @@
             <div v-for="(g, gi) in form.groups" :key="gi" class="group-card">
               <div class="group-head">
                 <input v-model="g.name" class="group-name-input" maxlength="50" placeholder="组名" />
-                <div class="group-interval">
-                  <span class="group-interval-label">间隔</span>
+                <div class="group-interval" title="间隔相同的队伍构成同一个班次，每天每个班次各派一支队伍值班">
+                  <span class="group-interval-label">班次间隔</span>
                   <input v-model="g.intervalDays" type="number" min="1" max="60" class="group-interval-input font-mono" />
                   <span class="group-interval-unit">天/次</span>
                 </div>
