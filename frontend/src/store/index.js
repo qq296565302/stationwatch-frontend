@@ -763,7 +763,8 @@ export const useAppStore = defineStore('app', {
     //   totals: { total, done, completion, overdue, overdueRate, stationCount },
     //   stations: [{ stationId, stationName, region, total, done, completion, overdue }],
     //   trend:    [{ date, total, done, pending }],
-    //   businessTypes: [{ label, value, done }]
+    //   businessTypes: [{ label, value, done }],
+    //   heatmap:  { grid: 7×24 数字矩阵（星期×小时）, max }
     // }
     async fetchStationOverview(startDate, endDate) {
       // ---- 主路径：后端聚合接口 ----
@@ -822,8 +823,18 @@ export const useAppStore = defineStore('app', {
         },
         stations,
         trend,
-        businessTypes
+        businessTypes,
+        heatmap: this._normalizeHeatmap(data.heatmap)
       }
+    },
+
+    // 热力图规范化：补齐 7×24 网格并推导峰值，后端未返回时给全 0 空网格
+    _normalizeHeatmap(h) {
+      const grid = Array.from({ length: 7 }, (_, d) =>
+        Array.from({ length: 24 }, (_, hh) => Number(h?.grid?.[d]?.[hh]) || 0)
+      )
+      const max = grid.reduce((m, row) => row.reduce((m2, v) => Math.max(m2, v), m), 0)
+      return { grid, max }
     },
 
     // 前端本地逐站聚合：遍历可见站点拉区间记录，汇总各站指标 + 趋势 + 业务分布
@@ -843,6 +854,8 @@ export const useAppStore = defineStore('app', {
       const stationRows = []
       const trendMap = new Map()
       const typeMap = new Map()
+      // 跨站接单热力图：星期 × 小时（口径与主控台 heatmapData 一致，聚合范围为全部可见站点）
+      const heatGrid = Array.from({ length: 7 }, () => Array(24).fill(0))
       const regionName = (s) => s.region || s.districtName || ''
 
       results.forEach((res, i) => {
@@ -856,6 +869,14 @@ export const useAppStore = defineStore('app', {
         list.forEach(r => {
           const items = (r.dutyItems || []).filter(it => it.content)
           items.forEach(it => {
+            // 热力图：按受理小时 × 记录日期星期累加
+            if (it.acceptTime) {
+              const [h] = String(it.acceptTime).split(':').map(Number)
+              if (Number.isInteger(h) && h >= 0 && h < 24) {
+                const day = new Date(r.recordDate).getDay()
+                heatGrid[day === 0 ? 6 : day - 1][h] += 1
+              }
+            }
             const key = byHour
               ? (it.acceptTime ? `${it.acceptTime.slice(0, 2)}:00` : '00:00')
               : r.recordDate
@@ -901,7 +922,7 @@ export const useAppStore = defineStore('app', {
       }
       const businessTypes = Array.from(typeMap.values()).sort((a, b) => b.value - a.value)
       const totals = this._totalsOf(stationRows, trend, businessTypes)
-      return this._normalizeOverview({ totals, stations: stationRows, trend, businessTypes })
+      return this._normalizeOverview({ totals, stations: stationRows, trend, businessTypes, heatmap: { grid: heatGrid } })
     },
 
     _completionOf(done, total) {

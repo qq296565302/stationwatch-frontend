@@ -151,6 +151,48 @@
             </div>
           </div>
         </div>
+
+        <!-- 跨站接单热力图（统计范围：当前账号权限内全部供电所） -->
+        <div class="card panel-heatmap">
+          <div class="card-header">
+            <h2 class="card-title">跨站接单热力图</h2>
+            <span class="card-meta">星期 × 小时 · {{ overview.stations.length }} 站</span>
+          </div>
+          <div class="card-body">
+            <div v-if="heatmap.max === 0" class="empty-mini">暂无接单数据</div>
+            <div v-else class="heatmap">
+              <div class="heatmap-grid">
+                <div class="y-labels">
+                  <span v-for="d in dayLabels" :key="d">{{ d }}</span>
+                </div>
+                <div class="grid-body">
+                  <div
+                    v-for="(row, ri) in heatmap.grid"
+                    :key="'r'+ri"
+                    class="grid-row"
+                  >
+                    <div
+                      v-for="(v, ci) in row"
+                      :key="'c'+ci"
+                      class="grid-cell"
+                      :style="{ background: heatColor(v) }"
+                      :title="`${dayLabels[ri]} ${ci}:00 · ${v} 单`"
+                    ></div>
+                  </div>
+                  <div class="x-labels">
+                    <span v-for="h in [0, 3, 6, 9, 12, 15, 18, 21]" :key="'h'+h" :style="{ left: (h / 23 * 100) + '%' }">{{ h }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="heatmap-legend">
+                <span>少</span>
+                <div class="legend-bar"></div>
+                <span>多</span>
+                <span class="legend-max font-mono">峰值 {{ heatmap.max }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -320,6 +362,20 @@ const overviewBusinessTypes = computed(() =>
 )
 const overviewBusinessTotal = computed(() => overviewBusinessTypes.value.reduce((s, b) => s + b.value, 0))
 const overviewPct = (v) => overviewBusinessTotal.value === 0 ? 0 : Math.round(v / overviewBusinessTotal.value * 100)
+
+// ===== 跨站接单热力图（与主控台同款，聚合权限范围内全部供电所） =====
+const dayLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+const heatmap = computed(() => overview.value.heatmap || { grid: Array.from({ length: 7 }, () => Array(24).fill(0)), max: 0 })
+const heatColor = (v) => {
+  if (v === 0) return 'rgba(148, 163, 184, 0.08)'
+  if (heatmap.value.max === 0) return 'rgba(59, 130, 246, 0.2)'
+  const t = v / heatmap.value.max
+  // 蓝 → 红：颜色深浅
+  const alpha = 0.15 + t * 0.85
+  if (t < 0.4) return `rgba(59, 130, 246, ${alpha})`
+  if (t < 0.75) return `rgba(245, 158, 11, ${alpha})`
+  return `rgba(239, 68, 68, ${alpha})`
+}
 
 // 点击某供电所行 → 切换站点并跳转主控台查看单站明细
 const goStation = (stationId) => {
@@ -635,6 +691,56 @@ onMounted(async () => {
   width: 42px;
   text-align: right;
 }
+
+// ===== 跨站热力图 =====
+.heatmap { display: flex; flex-direction: column; gap: 12px; }
+.heatmap-grid {
+  display: flex;
+  gap: 4px;
+}
+.y-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  color: $text-muted;
+  span { height: 18px; line-height: 18px; }
+}
+.grid-body { flex: 1; display: flex; flex-direction: column; }
+.grid-row {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 2px;
+  height: 18px;
+}
+.grid-cell {
+  border-radius: 2px;
+  transition: transform 100ms ease;
+  cursor: pointer;
+  &:hover { transform: scale(1.2); }
+}
+.x-labels {
+  position: relative;
+  height: 14px;
+  font-size: 10px;
+  color: $text-muted;
+  margin-top: 2px;
+  span { position: absolute; transform: translateX(-50%); }
+}
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: $text-muted;
+}
+.legend-bar {
+  width: 60px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(59,130,246,0.15), rgba(245,158,11,0.5), rgba(239,68,68,1));
+}
+.legend-max { margin-left: auto; }
 
 // ===== 响应式 =====
 @media (max-width: 1100px) {

@@ -1084,6 +1084,36 @@
             "左迪"
           ],
           "membersRaw": "曹学凯、崔保亮、宗国亮、李国盈、张振、刘全成、张泽林、王雁飞、林敬博、刘钱琛、王朝阳、王泽坤、董振邦、毛国政、李泓轩、李昀聪、崔静怡、左迪"
+        },
+        {
+          "name": "城区供电服务站",
+          "abbr": "csz",
+          "sup": "刘同银",
+          "members": [
+            "王明超",
+            "冯占凯",
+            "孙士刚",
+            "郎需栋",
+            "赵云祥",
+            "张珂钦",
+            "李嘉欣",
+            "陈宜谦",
+            "王鹏",
+            "孙振中",
+            "杨健",
+            "路海南",
+            "李文燕",
+            "王汉祥",
+            "王建力",
+            "王效峰",
+            "周晓涵",
+            "王浩港",
+            "吕绪成",
+            "韩迎祥",
+            "袁文杰",
+            "王景磊"
+          ],
+          "membersRaw": "王明超、冯占凯、孙士刚、郎需栋、赵云祥、张珂钦、李嘉欣、陈宜谦、王鹏、孙振中、杨健、路海南、李文燕、王汉祥、王建力、王效峰、周晓涵、王浩港、吕绪成、韩迎祥、袁文杰、王景磊"
         }
       ]
     },
@@ -15468,6 +15498,213 @@
       "district": "张店供电中心",
       "station": "中埠供电所",
       "stationAbbr": "zb"
+    },
+    {
+      "username": "cszliutongyin",
+      "password": "@csz_95598",
+      "realName": "刘同银",
+      "role": "supervisor",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszwangmingchao",
+      "password": "@csz_95598",
+      "realName": "王明超",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszfengzhankai",
+      "password": "@csz_95598",
+      "realName": "冯占凯",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszsunshigang",
+      "password": "@csz_95598",
+      "realName": "孙士刚",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszlangxudong",
+      "password": "@csz_95598",
+      "realName": "郎需栋",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszzhaoyunxiang",
+      "password": "@csz_95598",
+      "realName": "赵云祥",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszzhangkeqin",
+      "password": "@csz_95598",
+      "realName": "张珂钦",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszlijiaxin",
+      "password": "@csz_95598",
+      "realName": "李嘉欣",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszchenyiqian",
+      "password": "@csz_95598",
+      "realName": "陈宜谦",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszwangpeng",
+      "password": "@csz_95598",
+      "realName": "王鹏",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszsunzhenzhong",
+      "password": "@csz_95598",
+      "realName": "孙振中",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszyangjian",
+      "password": "@csz_95598",
+      "realName": "杨健",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszluhainan",
+      "password": "@csz_95598",
+      "realName": "路海南",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszliwenyan",
+      "password": "@csz_95598",
+      "realName": "李文燕",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszwanghanxiang",
+      "password": "@csz_95598",
+      "realName": "王汉祥",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszwangjianli",
+      "password": "@csz_95598",
+      "realName": "王建力",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszwangxiaofeng",
+      "password": "@csz_95598",
+      "realName": "王效峰",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszzhouxiaohan",
+      "password": "@csz_95598",
+      "realName": "周晓涵",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszwanghaogang",
+      "password": "@csz_95598",
+      "realName": "王浩港",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszlvxucheng",
+      "password": "@csz_95598",
+      "realName": "吕绪成",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszhanyingxiang",
+      "password": "@csz_95598",
+      "realName": "韩迎祥",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszyuanwenjie",
+      "password": "@csz_95598",
+      "realName": "袁文杰",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
+    },
+    {
+      "username": "cszwangjinglei",
+      "password": "@csz_95598",
+      "realName": "王景磊",
+      "role": "duty_officer",
+      "district": "临淄供电中心",
+      "station": "城区供电服务站",
+      "stationAbbr": "csz"
     }
   ]
 }

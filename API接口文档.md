@@ -380,6 +380,7 @@ POST /api/v1/records
 - `overdue`：未完成且从受理起超过站点 `orderTimeLimit`，或已完成但处理耗时超时限（同 `utils/orderTimeout.js` 口径）
 - `trend` 按天聚合 `total / done / pending`；区间内缺日由前端补齐 0
 - `businessTypes` 按 `businessType` 分组统计 `value / done`
+- `heatmap` 为星期 × 小时的 7×24 网格（`grid[dayIdx][hour]`，dayIdx 0=周一 … 6=周日），仅统计有 `acceptTime` 的工单；`max` 为峰值（前端可自行推导，后端可省略）
 
 **响应**（`data` 字段）：
 ```json
@@ -409,7 +410,11 @@ POST /api/v1/records
   ],
   "businessTypes": [
     { "label": "故障报修", "value": 60, "done": 55 }
-  ]
+  ],
+  "heatmap": {
+    "grid": [[0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
+    "max": 3
+  }
 }
 ```
 
