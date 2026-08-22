@@ -33,18 +33,19 @@
       </div>
     </div>
 
-    <!-- 全站汇总统计卡 -->
+    <!-- 全站汇总统计卡（副标题为与上一同期区间的环比） -->
     <div class="totals-row">
-      <StatCard label="全站接单" :value="overview.totals.total" unit="项" />
-      <StatCard label="全站已完成" :value="overview.totals.done" unit="项" />
-      <StatCard label="全站完成率" :value="overview.totals.completion" unit="%" />
-      <StatCard label="全站超时" :value="overview.totals.overdue" unit="项" :sub="`${overview.totals.overdueRate}%`" variant="critical" />
+      <StatCard label="全站接单" :value="overview.totals.total" unit="项" :sub="pctText(deltas.total)" />
+      <StatCard label="全站已完成" :value="overview.totals.done" unit="项" :sub="pctText(deltas.done)" />
+      <StatCard label="全站完成率" :value="overview.totals.completion" unit="%" :sub="ppText(deltas.completion)" />
+      <StatCard label="全站超时" :value="overview.totals.overdue" unit="项" :sub="`超时率 ${overview.totals.overdueRate}% · ${pctText(deltas.overdue)}`" variant="critical" />
     </div>
 
     <div v-if="loading" class="empty-block">加载中…</div>
 
     <!-- 各供电所对比表 -->
-    <div v-else class="grid-main">
+    <template v-else>
+    <div class="grid-main">
       <div class="card panel-table">
         <div class="card-header">
           <h2 class="card-title">各供电所关键指标</h2>
@@ -193,8 +194,170 @@
             </div>
           </div>
         </div>
+
+        <!-- 跨站响应时长（统计范围：当前账号权限内全部供电所） -->
+        <div class="card panel-response">
+          <div class="card-header">
+            <h2 class="card-title">跨站响应时长</h2>
+            <span class="card-meta">全部可见站点 · 已完成工单</span>
+          </div>
+          <div class="card-body">
+            <div v-if="overview.response.avgDuration === 0" class="empty-mini">本区间暂无已完成工单的耗时数据</div>
+            <template v-else>
+              <div class="response-grid">
+                <div class="resp-cell">
+                  <div class="resp-label">平均耗时</div>
+                  <div class="resp-value font-mono">
+                    <span class="resp-num">{{ formatDuration(overview.response.avgDuration) }}</span>
+                  </div>
+                  <div class="resp-sub">所有已完成工单</div>
+                </div>
+                <div class="resp-cell">
+                  <div class="resp-label">中位数</div>
+                  <div class="resp-value font-mono">
+                    <span class="resp-num text-ok">{{ formatDuration(overview.response.median) }}</span>
+                  </div>
+                  <div class="resp-sub">半数工单快于此</div>
+                </div>
+                <div class="resp-cell">
+                  <div class="resp-label">P90</div>
+                  <div class="resp-value font-mono">
+                    <span class="resp-num text-warn">{{ formatDuration(overview.response.p90) }}</span>
+                  </div>
+                  <div class="resp-sub">90% 工单快于此</div>
+                </div>
+              </div>
+              <div v-if="durationRank.length" class="rank-block">
+                <div class="rank-title">各站平均耗时（慢的在前）</div>
+                <div v-for="s in durationRank" :key="s.stationId" class="rank-row">
+                  <span class="rank-name" :title="s.stationName">{{ s.stationName }}</span>
+                  <div class="rank-track">
+                    <div class="rank-fill resp" :style="{ width: durationPct(s) + '%' }"></div>
+                  </div>
+                  <span class="rank-val font-mono">{{ formatDuration(s.avgDuration) }}</span>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- 客户满意度 -->
+        <div class="card panel-satisfaction">
+          <div class="card-header">
+            <h2 class="card-title">客户满意度</h2>
+            <span class="card-meta">{{ overview.satisfaction.rated }} 条评价</span>
+          </div>
+          <div class="card-body">
+            <div v-if="overview.satisfaction.rated === 0" class="empty-mini">本区间暂无客户评价数据</div>
+            <template v-else>
+              <div class="sat-hero">
+                <span class="sat-num font-mono" :class="satClass(overview.satisfaction.rate)">{{ overview.satisfaction.rate }}%</span>
+                <span class="sat-sub">全站满意率 · {{ overview.satisfaction.satisfied }}/{{ overview.satisfaction.rated }} 条满意</span>
+              </div>
+              <div v-if="satTop3.length" class="rank-block">
+                <div class="rank-title">满意率最高（TOP 3）</div>
+                <div v-for="s in satTop3" :key="s.stationId" class="rank-row">
+                  <span class="rank-name" :title="s.stationName">{{ s.stationName }}</span>
+                  <div class="rank-track">
+                    <div class="rank-fill" :class="`sat-${satClass(s.satisfactionRate)}`" :style="{ width: s.satisfactionRate + '%' }"></div>
+                  </div>
+                  <span class="rank-val font-mono" :class="satClass(s.satisfactionRate)">{{ s.satisfactionRate }}%</span>
+                </div>
+              </div>
+              <div v-if="satBottom3.length" class="rank-block">
+                <div class="rank-title">满意率最低（后 3）</div>
+                <div v-for="s in satBottom3" :key="s.stationId" class="rank-row">
+                  <span class="rank-name" :title="s.stationName">{{ s.stationName }}</span>
+                  <div class="rank-track">
+                    <div class="rank-fill" :class="`sat-${satClass(s.satisfactionRate)}`" :style="{ width: s.satisfactionRate + '%' }"></div>
+                  </div>
+                  <span class="rank-val font-mono" :class="satClass(s.satisfactionRate)">{{ s.satisfactionRate }}%</span>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- 跨站重复报修 -->
+    <div class="card panel-duplicate">
+      <div class="card-header">
+        <h2 class="card-title">跨站重复报修</h2>
+        <span class="card-meta">
+          客户重复 {{ overview.duplicates.customerGroups.length }} 组 · 地址重复 {{ overview.duplicates.addressGroups.length }} 组 · 跨供电所合并判定
+        </span>
+      </div>
+      <div class="card-body">
+        <div v-if="overview.duplicates.total === 0" class="empty-mini">本区间暂无重复报修</div>
+        <template v-else>
+          <div class="dup-summary">
+            <span class="dup-total-num font-mono">{{ overview.duplicates.total }}</span>
+            <span class="dup-total-unit">条</span>
+            <span class="dup-summary-sub">同一客户或同一地址报修 ≥2 次 · 已去重 · 点击工单可查看记录详情</span>
+          </div>
+
+          <div v-if="dupCustomerGroups.length" class="dup-groups">
+            <h3 class="dup-group-title">客户名称重复</h3>
+            <div v-for="g in dupCustomerGroups" :key="'c' + g.key" class="dup-group">
+              <div class="dup-group-head">
+                <span class="dup-badge cust" :title="g.key">{{ g.key }}</span>
+                <span class="dup-count">{{ g.count }} 次</span>
+                <span v-if="g.stationCount > 1" class="dup-cross">跨 {{ g.stationCount }} 站</span>
+              </div>
+              <div class="dup-items">
+                <div v-for="it in g.items" :key="it.id" class="dup-item" role="link" tabindex="0" aria-label="查看工单详情" @click="goRecord(it)" @keydown.enter="goRecord(it)">
+                  <div class="dup-item-main">
+                    <span class="dup-content">{{ it.content }}</span>
+                    <span v-if="it.customerSatisfied" class="dup-satisfied">客户满意</span>
+                  </div>
+                  <div class="dup-item-meta">
+                    <span class="dup-meta-item dup-station">{{ it._stationName }}</span>
+                    <span v-if="it.businessType" class="dup-meta-item">{{ it.businessType }}</span>
+                    <span v-if="it.customerPhone" class="dup-meta-item">{{ it.customerPhone }}</span>
+                  </div>
+                  <div class="dup-item-foot">
+                    <span v-if="it.result" class="dup-result">处理结果：{{ it.result }}</span>
+                    <span class="dup-time font-mono">{{ it._recordDate }} {{ it.acceptTime }}<template v-if="it.endTime">→{{ it.endTime }}</template></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-if="overview.duplicates.customerGroups.length > MAX_DUP_GROUPS" class="dup-more">仅展示前 {{ MAX_DUP_GROUPS }} 组，共 {{ overview.duplicates.customerGroups.length }} 组</div>
+          </div>
+
+          <div v-if="dupAddressGroups.length" class="dup-groups">
+            <h3 class="dup-group-title">联系地址重复</h3>
+            <div v-for="g in dupAddressGroups" :key="'a' + g.key" class="dup-group">
+              <div class="dup-group-head">
+                <span class="dup-badge addr" :title="g.key">{{ g.key }}</span>
+                <span class="dup-count">{{ g.count }} 次</span>
+                <span v-if="g.stationCount > 1" class="dup-cross">跨 {{ g.stationCount }} 站</span>
+              </div>
+              <div class="dup-items">
+                <div v-for="it in g.items" :key="it.id" class="dup-item" role="link" tabindex="0" aria-label="查看工单详情" @click="goRecord(it)" @keydown.enter="goRecord(it)">
+                  <div class="dup-item-main">
+                    <span class="dup-content">{{ it.content }}</span>
+                    <span v-if="it.customerSatisfied" class="dup-satisfied">客户满意</span>
+                  </div>
+                  <div class="dup-item-meta">
+                    <span class="dup-meta-item dup-station">{{ it._stationName }}</span>
+                    <span v-if="it.businessType" class="dup-meta-item">{{ it.businessType }}</span>
+                    <span v-if="it.customerPhone" class="dup-meta-item">{{ it.customerPhone }}</span>
+                  </div>
+                  <div class="dup-item-foot">
+                    <span v-if="it.result" class="dup-result">处理结果：{{ it.result }}</span>
+                    <span class="dup-time font-mono">{{ it._recordDate }} {{ it.acceptTime }}<template v-if="it.endTime">→{{ it.endTime }}</template></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-if="overview.duplicates.addressGroups.length > MAX_DUP_GROUPS" class="dup-more">仅展示前 {{ MAX_DUP_GROUPS }} 组，共 {{ overview.duplicates.addressGroups.length }} 组</div>
+          </div>
+        </template>
+      </div>
+    </div>
+    </template>
   </div>
 </template>
 
@@ -253,25 +416,59 @@ const rangeBounds = computed(() => {
 })
 const rangeMeta = computed(() => `${rangeBounds.value.start} → ${rangeBounds.value.end}`)
 
+// ===== 环比区间（上一同期，用于汇总卡环比） =====
+// today→昨天；week→上周同期（起止各 -7 天）；month→上月同期（上月1号~上月同号，钳制到月末）；year→去年同期
+const prevRangeBounds = computed(() => {
+  const [y, m, d] = todayISO.split('-').map(Number)
+  const p = (n) => String(n).padStart(2, '0')
+  const iso = (dt) => `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
+  let start, end
+  if (range.value === 'today') {
+    start = end = new Date(y, m - 1, d - 1)
+  } else if (range.value === 'week') {
+    const [sy, sm, sd] = rangeBounds.value.start.split('-').map(Number)
+    const [ey, em, ed] = rangeBounds.value.end.split('-').map(Number)
+    start = new Date(sy, sm - 1, sd - 7)
+    end = new Date(ey, em - 1, ed - 7)
+  } else if (range.value === 'month') {
+    const lastDayOfPrev = new Date(y, m - 1, 0).getDate()
+    start = new Date(y, m - 2, 1)
+    end = new Date(y, m - 2, Math.min(d, lastDayOfPrev))
+  } else {
+    start = new Date(y - 1, 0, 1)
+    end = new Date(y - 1, m - 1, d)
+  }
+  return { start: iso(start), end: iso(end) }
+})
+
 // ===== 数据 =====
-const overview = ref({
+const emptyOverview = () => ({
   totals: { total: 0, done: 0, completion: 0, overdue: 0, overdueRate: 0, stationCount: 0 },
   stations: [],
   trend: [],
-  businessTypes: []
+  businessTypes: [],
+  heatmap: null,
+  response: { avgDuration: 0, median: 0, p90: 0 },
+  satisfaction: { rated: 0, satisfied: 0, rate: 0 },
+  duplicates: { total: 0, customerGroups: [], addressGroups: [] }
 })
+const overview = ref(emptyOverview())
+// 上期汇总（环比基准），拉取失败时为 null（界面显示"环比 —"）
+const prevTotals = ref(null)
 
 const loadData = async () => {
   loading.value = true
   try {
-    overview.value = await store.fetchStationOverview(rangeBounds.value.start, rangeBounds.value.end)
+    // 并行拉取本期与上期（同期）聚合数据；上期仅用于汇总卡环比，失败不阻塞主数据
+    const [curRes, prevRes] = await Promise.allSettled([
+      store.fetchStationOverview(rangeBounds.value.start, rangeBounds.value.end),
+      store.fetchStationOverview(prevRangeBounds.value.start, prevRangeBounds.value.end)
+    ])
+    overview.value = curRes.status === 'fulfilled' ? curRes.value : emptyOverview()
+    prevTotals.value = prevRes.status === 'fulfilled' ? prevRes.value.totals : null
   } catch {
-    overview.value = {
-      totals: { total: 0, done: 0, completion: 0, overdue: 0, overdueRate: 0, stationCount: 0 },
-      stations: [],
-      trend: [],
-      businessTypes: []
-    }
+    overview.value = emptyOverview()
+    prevTotals.value = null
   } finally {
     loading.value = false
   }
@@ -375,6 +572,81 @@ const heatColor = (v) => {
   if (t < 0.4) return `rgba(59, 130, 246, ${alpha})`
   if (t < 0.75) return `rgba(245, 158, 11, ${alpha})`
   return `rgba(239, 68, 68, ${alpha})`
+}
+
+// ===== 环比（汇总卡副标题）：与上一同期区间对比 =====
+// 上期为 0 且本期 >0 时无基准（null → 显示"环比 —"）
+const pctDelta = (cur, prev) => {
+  if (prev === 0) return cur === 0 ? 0 : null
+  return Math.round(((cur - prev) / prev) * 100)
+}
+const deltas = computed(() => {
+  const c = overview.value.totals
+  const p = prevTotals.value
+  if (!p) return { total: null, done: null, completion: null, overdue: null }
+  return {
+    total: pctDelta(c.total, p.total),
+    done: pctDelta(c.done, p.done),
+    completion: c.completion - p.completion,
+    overdue: pctDelta(c.overdue, p.overdue)
+  }
+})
+const pctText = (v) => {
+  if (v == null) return '环比 —'
+  if (v === 0) return '环比持平'
+  return `环比 ${v > 0 ? '↑' : '↓'}${Math.abs(v)}%`
+}
+// 完成率是百分比，环比用百分点差（pp）
+const ppText = (v) => {
+  if (v == null) return '环比 —'
+  if (v === 0) return '环比持平'
+  return `环比 ${v > 0 ? '+' : ''}${v}pp`
+}
+
+// ===== 跨站响应时长 =====
+const formatDuration = (mins) => {
+  if (!mins) return '—'
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  if (h === 0) return `${m}分`
+  if (m === 0) return `${h}小时`
+  return `${h}h${m}m`
+}
+// 各站平均耗时排名（慢的在前，突出问题站）
+const durationRank = computed(() =>
+  overview.value.stations.filter(s => s.avgDuration > 0).sort((a, b) => b.avgDuration - a.avgDuration)
+)
+const maxAvgDuration = computed(() => Math.max(1, ...durationRank.value.map(s => s.avgDuration)))
+const durationPct = (s) => Math.round((s.avgDuration / maxAvgDuration.value) * 100)
+
+// ===== 客户满意度 =====
+// 仅统计有评价（rated > 0）的站；展示两极：满意率最高 TOP 3 与最低后 3
+// （bottom3 剔除已进 top3 的站，站点过少时自然收敛甚至隐藏）
+const ratedStations = computed(() => overview.value.stations.filter(s => s.rated > 0))
+const satTop3 = computed(() =>
+  [...ratedStations.value]
+    .sort((a, b) => b.satisfactionRate - a.satisfactionRate || b.rated - a.rated)
+    .slice(0, 3)
+)
+const satBottom3 = computed(() => {
+  const topIds = new Set(satTop3.value.map(s => s.stationId))
+  return [...ratedStations.value]
+    .sort((a, b) => a.satisfactionRate - b.satisfactionRate || b.rated - a.rated)
+    .filter(s => !topIds.has(s.stationId))
+    .slice(0, 3)
+})
+const satClass = (rate) => rate >= 80 ? 'ok' : (rate >= 60 ? 'warn' : 'crit')
+
+// ===== 跨站重复报修 =====
+// 组数过多时截断展示，头部 meta 显示全量
+const MAX_DUP_GROUPS = 10
+const dupCustomerGroups = computed(() => overview.value.duplicates.customerGroups.slice(0, MAX_DUP_GROUPS))
+const dupAddressGroups = computed(() => overview.value.duplicates.addressGroups.slice(0, MAX_DUP_GROUPS))
+// 点击重复报修工单 → 跳转对应记录详情
+const goRecord = (it) => {
+  const rid = it?._recordId ?? it?.recordId
+  if (!rid) return
+  router.push(`/records/${rid}`)
 }
 
 // 点击某供电所行 → 切换站点并跳转主控台查看单站明细
@@ -742,12 +1014,251 @@ onMounted(async () => {
 }
 .legend-max { margin-left: auto; }
 
+// ===== 响应时长 + 满意度（side-charts 列内卡片） =====
+.response-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.resp-cell {
+  padding: 10px 8px;
+  background: $bg-page;
+  border-radius: 6px;
+  text-align: center;
+}
+.resp-label {
+  font-size: 11px;
+  color: $text-muted;
+  margin-bottom: 4px;
+}
+.resp-num {
+  font-size: 18px;
+  font-weight: 600;
+  color: $text-primary;
+  display: block;
+  &.text-ok { color: $ok; }
+  &.text-warn { color: $warn; }
+}
+.resp-sub { font-size: 10px; color: $text-muted; margin-top: 2px; }
+
+.sat-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.sat-num {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  &.ok { color: $ok; }
+  &.warn { color: $warn; }
+  &.crit { color: $crit; }
+}
+.sat-sub { font-size: 12px; color: $text-muted; }
+
+// 各站指标条形排名（响应耗时 / 满意率共用）
+.rank-block { display: flex; flex-direction: column; gap: 6px; }
+.rank-block + .rank-block { margin-top: 12px; }
+.rank-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: $text-secondary;
+  margin-bottom: 2px;
+}
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.rank-name {
+  width: 96px;
+  flex-shrink: 0;
+  color: $text-primary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rank-track {
+  flex: 1;
+  height: 8px;
+  background: $bg-page;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.rank-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 400ms ease;
+  &.resp { background: linear-gradient(90deg, #3b82f6, #06b6d4); }
+  &.sat-ok { background: linear-gradient(90deg, $ok, #34d399); }
+  &.sat-warn { background: linear-gradient(90deg, $warn, #fbbf24); }
+  &.sat-crit { background: linear-gradient(90deg, $crit, #f87171); }
+}
+.rank-val {
+  width: 56px;
+  text-align: right;
+  flex-shrink: 0;
+  color: $text-secondary;
+  font-weight: 500;
+  &.ok { color: $ok; }
+  &.warn { color: $warn; }
+  &.crit { color: $crit; }
+}
+
+// ===== 跨站重复报修 =====
+.panel-duplicate { margin-top: 16px; }
+.dup-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.dup-total-num {
+  font-size: 28px;
+  font-weight: 700;
+  color: $crit;
+  line-height: 1;
+}
+.dup-total-unit {
+  font-size: 14px;
+  color: $text-muted;
+  font-weight: 500;
+}
+.dup-summary-sub { font-size: 12px; color: $text-muted; }
+
+.dup-groups { display: flex; flex-direction: column; gap: 8px; }
+.dup-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-secondary;
+  margin: 4px 0 0;
+}
+.dup-group {
+  padding: 10px 12px;
+  background: $bg-page;
+  border-radius: $radius-md;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dup-group-head { display: flex; align-items: center; gap: 8px; }
+.dup-badge {
+  padding: 2px 8px;
+  border-radius: $radius-full;
+  font-size: 11px;
+  font-weight: 600;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.cust { background: $warn-soft; color: $warn; }
+  &.addr { background: $crit-soft; color: $crit; }
+}
+.dup-count { font-size: 11px; color: $text-muted; }
+.dup-cross {
+  padding: 1px 8px;
+  border-radius: $radius-full;
+  font-size: 11px;
+  font-weight: 600;
+  background: $primary-soft;
+  color: $primary;
+}
+.dup-more { font-size: 11px; color: $text-muted; padding-left: 4px; }
+
+.dup-items { display: flex; flex-direction: column; gap: 4px; }
+.dup-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: $bg-card;
+  border: 1px solid $border-subtle;
+  border-radius: $radius-sm;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color $duration-fast $ease-out;
+
+  &:hover,
+  &:focus-visible {
+    border-color: $accent;
+    outline: none;
+  }
+}
+.dup-item-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.dup-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: $text-primary;
+}
+.dup-satisfied {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: $radius-full;
+  font-size: 11px;
+  font-weight: 600;
+  background: $ok-soft;
+  border: 1px solid $ok-border;
+  color: $ok;
+}
+.dup-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: $text-secondary;
+  min-width: 0;
+}
+.dup-meta-item {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dup-station {
+  color: $primary;
+  font-weight: 500;
+  background: $primary-soft;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+.dup-item-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+.dup-result {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: $text-secondary;
+}
+.dup-time { font-size: 11px; color: $text-muted; flex-shrink: 0; }
+
 // ===== 响应式 =====
 @media (max-width: 1100px) {
   .grid-main { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
   .totals-row { grid-template-columns: repeat(2, 1fr); }
+  .response-grid { grid-template-columns: repeat(3, 1fr); }
 }
 .overview-view.font-large {
   .grid-main { grid-template-columns: 1fr; }

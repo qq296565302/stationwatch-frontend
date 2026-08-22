@@ -381,6 +381,10 @@ POST /api/v1/records
 - `trend` 按天聚合 `total / done / pending`；区间内缺日由前端补齐 0
 - `businessTypes` 按 `businessType` 分组统计 `value / done`
 - `heatmap` 为星期 × 小时的 7×24 网格（`grid[dayIdx][hour]`，dayIdx 0=周一 … 6=周日），仅统计有 `acceptTime` 的工单；`max` 为峰值（前端可自行推导，后端可省略）
+- `response` 跨站响应时长（分钟）：`avgDuration` 平均 / `median` 中位数 / `p90`，口径同单站 `efficiencyMetrics`（当天误填未来时间不计、跨天完成补 1440、过滤非法耗时）
+- `satisfaction` 客户满意度：`rated` 有明确评价（true/false）的工单数，`satisfied` 满意数，`rate` 满意率（百分比整数，可推导）
+- `stations[].avgDuration` 各站平均耗时；`stations[].satisfied/rated/satisfactionRate` 各站满意度
+- `duplicates` 跨站重复报修（同一客户名或联系地址报修 ≥2 次，跨供电所合并判定）：`total` 去重后工单数；`customerGroups/addressGroups` 分组，每组含 `key/count/stationCount/stationNames/items`（跨站组排在前）
 
 **响应**（`data` 字段）：
 ```json
@@ -402,7 +406,11 @@ POST /api/v1/records
       "total": 80,
       "done": 70,
       "completion": 88,
-      "overdue": 2
+      "overdue": 2,
+      "avgDuration": 45,
+      "satisfied": 30,
+      "rated": 32,
+      "satisfactionRate": 94
     }
   ],
   "trend": [
@@ -414,6 +422,15 @@ POST /api/v1/records
   "heatmap": {
     "grid": [[0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]],
     "max": 3
+  },
+  "response": { "avgDuration": 42, "median": 35, "p90": 95 },
+  "satisfaction": { "rated": 60, "satisfied": 55, "rate": 92 },
+  "duplicates": {
+    "total": 8,
+    "customerGroups": [
+      { "key": "张三", "count": 3, "stationCount": 2, "stationNames": ["马尚供电所", "南定供电所"], "items": [] }
+    ],
+    "addressGroups": []
   }
 }
 ```

@@ -761,10 +761,14 @@ export const useAppStore = defineStore('app', {
     // 返回 shape（与后端接口约定一致）：
     // {
     //   totals: { total, done, completion, overdue, overdueRate, stationCount },
-    //   stations: [{ stationId, stationName, region, total, done, completion, overdue }],
+    //   stations: [{ stationId, stationName, region, total, done, completion, overdue,
+    //                avgDuration, satisfied, rated, satisfactionRate }],
     //   trend:    [{ date, total, done, pending }],
     //   businessTypes: [{ label, value, done }],
-    //   heatmap:  { grid: 7×24 数字矩阵（星期×小时）, max }
+    //   heatmap:  { grid: 7×24 数字矩阵（星期×小时）, max },
+    //   response: { avgDuration, median, p90 },        // 跨站响应时长（分钟）
+    //   satisfaction: { rated, satisfied, rate },      // 跨站客户满意度
+    //   duplicates: { total, customerGroups, addressGroups } // 跨站重复报修
     // }
     async fetchStationOverview(startDate, endDate) {
       // ---- 主路径：后端聚合接口 ----
@@ -786,6 +790,8 @@ export const useAppStore = defineStore('app', {
       const stations = (data.stations || []).map(s => {
         const total = Number(s.total) || 0
         const done = Number(s.done) || 0
+        const rated = Number(s.rated) || 0
+        const satisfied = Number(s.satisfied) || 0
         return {
           stationId: s.stationId ?? s.id,
           stationName: s.stationName ?? s.name ?? '',
@@ -795,7 +801,11 @@ export const useAppStore = defineStore('app', {
           total,
           done,
           completion: s.completion != null ? Number(s.completion) : this._completionOf(done, total),
-          overdue: Number(s.overdue) || 0
+          overdue: Number(s.overdue) || 0,
+          avgDuration: Number(s.avgDuration) || 0,
+          satisfied,
+          rated,
+          satisfactionRate: s.satisfactionRate != null ? Number(s.satisfactionRate) : this._completionOf(satisfied, rated)
         }
       })
       const trend = (data.trend || []).map(t => ({
@@ -812,6 +822,12 @@ export const useAppStore = defineStore('app', {
       const totals = data.totals || this._totalsOf(stations, trend, businessTypes)
       const tDone = Number(totals.done) || 0
       const tTotal = Number(totals.total) || 0
+      // 响应时长 / 满意度：后端未返回时由各站数据兜底推导
+      const resp = data.response || {}
+      const sat = data.satisfaction || {}
+      const satRated = sat.rated != null ? Number(sat.rated) : stations.reduce((s, x) => s + x.rated, 0)
+      const satSatisfied = sat.satisfied != null ? Number(sat.satisfied) : stations.reduce((s, x) => s + x.satisfied, 0)
+      const dup = data.duplicates || {}
       return {
         totals: {
           total: tTotal,
@@ -824,7 +840,22 @@ export const useAppStore = defineStore('app', {
         stations,
         trend,
         businessTypes,
-        heatmap: this._normalizeHeatmap(data.heatmap)
+        heatmap: this._normalizeHeatmap(data.heatmap),
+        response: {
+          avgDuration: Number(resp.avgDuration) || 0,
+          median: Number(resp.median) || 0,
+          p90: Number(resp.p90) || 0
+        },
+        satisfaction: {
+          rated: satRated,
+          satisfied: satSatisfied,
+          rate: sat.rate != null ? Number(sat.rate) : this._completionOf(satSatisfied, satRated)
+        },
+        duplicates: {
+          total: Number(dup.total) || 0,
+          customerGroups: dup.customerGroups || [],
+          addressGroups: dup.addressGroups || []
+        }
       }
     },
 
@@ -857,6 +888,10 @@ export const useAppStore = defineStore('app', {
       // 跨站接单热力图：星期 × 小时（口径与主控台 heatmapData 一致，聚合范围为全部可见站点）
       const heatGrid = Array.from({ length: 7 }, () => Array(24).fill(0))
       const regionName = (s) => s.region || s.districtName || ''
+      // 跨站全量工单（带站点/记录上下文）：用于响应时长、满意度、跨站重复报修分析
+      const allItems = []
+      // 各站已完成工单耗时（分钟），同时用于推导跨站整体指标
+      const stationDurations = []
 
       results.forEach((res, i) => {
         if (res.status !== 'fulfilled') return
@@ -865,10 +900,19 @@ export const useAppStore = defineStore('app', {
         const st = stations[i]
         const limit = st.orderTimeLimit ?? 60
 
-        let total = 0, done = 0, overdue = 0
+        let total = 0, done = 0, overdue = 0, satisfied = 0, rated = 0
+        const stDurations = []
         list.forEach(r => {
           const items = (r.dutyItems || []).filter(it => it.content)
           items.forEach(it => {
+            const ctx = {
+              ...it,
+              _stationId: st.id,
+              _stationName: st.name || '',
+              _recordDate: r.recordDate,
+              _recordId: r.id ?? it.recordId
+            }
+            allItems.push(ctx)
             // 热力图：按受理小时 × 记录日期星期累加
             if (it.acceptTime) {
               const [h] = String(it.acceptTime).split(':').map(Number)
@@ -876,6 +920,20 @@ export const useAppStore = defineStore('app', {
                 const day = new Date(r.recordDate).getDay()
                 heatGrid[day === 0 ? 6 : day - 1][h] += 1
               }
+            }
+            // 响应时长（口径与单站 efficiencyMetrics 一致）：
+            // 当天记录且受理时间晚于当前时刻（误填未来）不计；跨天完成补 1440；过滤非法耗时
+            if (ctx.isCompleted && ctx.acceptTime && ctx.endTime) {
+              if (!(ctx._recordDate === getTodayISO() && toMinutes(ctx.acceptTime) > toMinutes(getNowHM()))) {
+                let d = toMinutes(ctx.endTime) - toMinutes(ctx.acceptTime)
+                if (d < 0) d += 1440
+                if (d > 0 && d < 24 * 60) stDurations.push(d)
+              }
+            }
+            // 满意度：仅统计有明确评价（true/false）的工单
+            if (ctx.customerSatisfied === true || ctx.customerSatisfied === false) {
+              rated++
+              if (ctx.customerSatisfied) satisfied++
             }
             const key = byHour
               ? (it.acceptTime ? `${it.acceptTime.slice(0, 2)}:00` : '00:00')
@@ -896,6 +954,7 @@ export const useAppStore = defineStore('app', {
             if (toState && toState.state !== 'ok' && toState.state !== 'warning') overdue++
           })
         })
+        stationDurations.push(...stDurations)
         stationRows.push({
           stationId: st.id,
           stationName: st.name || '',
@@ -905,7 +964,11 @@ export const useAppStore = defineStore('app', {
           total,
           done,
           completion: this._completionOf(done, total),
-          overdue
+          overdue,
+          avgDuration: stDurations.length ? Math.round(stDurations.reduce((s, x) => s + x, 0) / stDurations.length) : 0,
+          satisfied,
+          rated,
+          satisfactionRate: rated === 0 ? 0 : Math.round((satisfied / rated) * 100)
         })
       })
 
@@ -922,7 +985,61 @@ export const useAppStore = defineStore('app', {
       }
       const businessTypes = Array.from(typeMap.values()).sort((a, b) => b.value - a.value)
       const totals = this._totalsOf(stationRows, trend, businessTypes)
-      return this._normalizeOverview({ totals, stations: stationRows, trend, businessTypes, heatmap: { grid: heatGrid } })
+
+      // ===== 跨站响应时长（口径与单站 efficiencyMetrics 一致） =====
+      const durations = [...stationDurations].sort((a, b) => a - b)
+      const avgDuration = durations.length ? Math.round(durations.reduce((s, x) => s + x, 0) / durations.length) : 0
+      const median = durations.length ? durations[Math.floor(durations.length / 2)] : 0
+      const p90 = durations.length ? durations[Math.min(durations.length - 1, Math.floor(durations.length * 0.9))] : 0
+      const response = { avgDuration, median, p90 }
+
+      // ===== 跨站客户满意度（汇总各站已评价工单） =====
+      const ratedTotal = stationRows.reduce((s, x) => s + x.rated, 0)
+      const satisfiedTotal = stationRows.reduce((s, x) => s + x.satisfied, 0)
+      const satisfaction = { rated: ratedTotal, satisfied: satisfiedTotal }
+
+      // ===== 跨站重复报修（同一客户/地址报修 ≥2 次，跨供电所合并判定） =====
+      // 与单站 duplicateWorkOrders 同口径；跨站价值在于发现"同一对象在多个供电所重复报修"
+      const dupKey = (v) => { const s = String(v ?? '').trim(); return s || null }
+      const dupGroup = (keyFn) => {
+        const map = new Map()
+        allItems.forEach(it => {
+          const k = keyFn(it)
+          if (!k) return
+          if (!map.has(k)) map.set(k, [])
+          map.get(k).push(it)
+        })
+        return Array.from(map.entries())
+          .filter(([, list]) => list.length >= 2)
+          .map(([k, list]) => {
+            const stationNames = Array.from(new Set(list.map(it => it._stationName).filter(Boolean)))
+            return {
+              key: k,
+              count: list.length,
+              stationCount: stationNames.length,
+              stationNames,
+              items: [...list].sort((a, b) => a._recordDate.localeCompare(b._recordDate))
+            }
+          })
+          // 跨站组优先展示（跨站报修管理价值最高），其次按次数
+          .sort((a, b) => (b.stationCount - a.stationCount) || (b.count - a.count))
+      }
+      const customerGroups = dupGroup(it => dupKey(it.customerName))
+      const addressGroups = dupGroup(it => dupKey(it.customerAddress))
+      const dupIds = new Set()
+      ;[...customerGroups, ...addressGroups].forEach(g => g.items.forEach(it => dupIds.add(it.id)))
+      const duplicates = { total: dupIds.size, customerGroups, addressGroups }
+
+      return this._normalizeOverview({
+        totals,
+        stations: stationRows,
+        trend,
+        businessTypes,
+        heatmap: { grid: heatGrid },
+        response,
+        satisfaction,
+        duplicates
+      })
     },
 
     _completionOf(done, total) {
